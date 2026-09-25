@@ -2,18 +2,25 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useApp } from '../context/AppContext'
 
-const floaters = [
-  { src: '/images/products/S__11141136_0.jpg', cls: 'top-2 right-40 h-28 w-28 md:h-40 md:w-40', delay: 0 },
-  { src: '/images/products/S__11141155_0.jpg', cls: 'top-24 right-2 h-32 w-32 md:h-52 md:w-52', delay: 0.4 },
-  { src: '/images/products/S__11141156_0.jpg', cls: 'bottom-6 right-48 h-36 w-36 md:h-56 md:w-56', delay: 0.8 },
-  { src: '/images/products/S__11141154_0.jpg', cls: 'bottom-2 right-4 h-20 w-20 md:h-28 md:w-28', delay: 1.2 },
-]
+const COMPOSITE = '/images/Gemini_Generated_Image_zijwixzijwixzijw.jpg'
 
 export default function Hero() {
   const { isAdmin } = useApp()
   return (
-    <section className="relative overflow-hidden bg-white">
-      <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 px-4 py-12 lg:grid-cols-2 lg:py-16">
+    // พื้นหลังตั้งเป็นสีเดียวกับพื้นของรูป (#f6f6f6) เพื่อให้รูปกลืนเป็นเนื้อเดียว ไม่เห็นขอบกล่อง
+    <section className="relative overflow-hidden bg-[#f6f6f6]">
+      {/* รูป composite เต็มด้านขวา (เดสก์ท็อป) */}
+      <motion.img
+        src={COMPOSITE}
+        alt="ขนมโตเกียว TOKYO HOUSE"
+        draggable={false}
+        initial={{ opacity: 0, scale: 1.03 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.8, ease: 'easeOut' }}
+        className="pointer-events-none absolute inset-y-0 right-0 hidden h-full w-auto max-w-none select-none object-cover object-left lg:block"
+      />
+
+      <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 px-4 py-12 lg:grid-cols-2 lg:py-20">
         {/* ซ้าย: ข้อความ */}
         <motion.div
           className="min-w-0"
@@ -49,22 +56,16 @@ export default function Hero() {
           </div>
         </motion.div>
 
-        {/* ขวา: รูปลอย */}
-        <div className="relative h-[320px] md:h-[460px]">
-          {floaters.map((f, i) => (
-            <motion.img
-              key={i}
-              src={f.src}
-              alt=""
-              initial={{ opacity: 0, scale: 0.6 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 + i * 0.15, type: 'spring' }}
-              className={`absolute rounded-full object-cover shadow-card ring-4 ring-white ${f.cls} animate-float`}
-              style={{ animationDelay: `${f.delay}s` }}
-            />
-          ))}
-          {/* วงกลมตกแต่งเบลอ */}
-          <div className="absolute right-24 top-16 -z-10 h-64 w-64 rounded-full bg-brand-yellow/30 blur-3xl" />
+        {/* คอลัมน์ขวาเว้นไว้ให้รูป (เดสก์ท็อป) / มือถือแสดงรูปด้านล่าง */}
+        <div className="lg:hidden">
+          <motion.img
+            src={COMPOSITE}
+            alt="ขนมโตเกียว TOKYO HOUSE"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="w-full select-none object-contain"
+          />
         </div>
       </div>
     </section>
