@@ -25,7 +25,7 @@ export default function Contact() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
-              className="card flex min-h-[80px] items-center gap-4 p-4 transition hover:-translate-y-0.5 hover:shadow-glow sm:p-5"
+              className="card flex min-h-[5rem] items-center gap-4 p-4 transition hover:-translate-y-0.5 hover:shadow-glow sm:p-5"
             >
               <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-xl font-bold text-white ${c.color}`}>
                 {c.icon ? <Icon name={c.icon} size={24} /> : c.glyph}

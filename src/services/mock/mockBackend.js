@@ -20,6 +20,7 @@ import {
   safeEqual,
 } from '../../lib/security'
 import { byCode } from '../../lib/format'
+import { blobToDataUrl } from '../../lib/image'
 import { AppError } from '../errors'
 import { FORECAST, MENU_SEED, MONTHLY_COSTS, makeHistory, makeTables } from './seed'
 
@@ -42,7 +43,8 @@ function load() {
 }
 
 function commit(db) {
-  writeJSON(STORAGE_KEYS.MOCK_DB, db)
+  // localStorage จุได้ ~5 MB — ถ้าเต็ม (เช่น อัปโหลดรูปเยอะ) ให้แจ้ง ไม่ใช่เงียบหาย
+  if (!writeJSON(STORAGE_KEYS.MOCK_DB, db)) throw new AppError('STORAGE_FULL')
   window.dispatchEvent(new Event(CHANGE_EVENT))
 }
 
@@ -309,6 +311,16 @@ export const setMenuAvailability = (id, available) =>
     }),
   )
 
+// โหมดทดลอง: เก็บรูปเป็น data URL ในเบราว์เซอร์ (ย่อแล้ว ~100 KB ต่อรูป)
+export async function uploadMenuImage(blob) {
+  try {
+    requireStaff()
+  } catch (e) {
+    return reject(e.code)
+  }
+  return blobToDataUrl(blob)
+}
+
 export const deleteMenuItems = (ids) =>
   staffOnly(() =>
     mutate((db) => {
@@ -380,14 +392,15 @@ export const updateOrderStatus = (orderId, status) =>
     }),
   )
 
-// จอครัว: ออเดอร์ 12 ชม. ล่าสุดที่ไม่ถูกยกเลิก พร้อมชื่อโต๊ะ
+// คิวออเดอร์ในแดชบอร์ด: ทุกรอบที่ยังไม่เสิร์ฟ (ไม่จำกัดเวลา) + ที่เสิร์ฟแล้วใน 12 ชม. พร้อมชื่อโต๊ะ
 export const listKitchenOrders = () =>
   staffOnly(() => {
     const db = load()
     const since = new Date(Date.now() - 12 * 3600 * 1000).toISOString()
     const bills = new Map(db.bills.map((b) => [b.id, b]))
     return db.orders
-      .filter((o) => o.created_at >= since && o.status !== ORDER_STATUS_CANCELLED)
+      .filter((o) => o.status !== ORDER_STATUS_CANCELLED)
+      .filter((o) => o.status !== ORDER_STATUS[2] || o.created_at >= since)
       .map(({ client_key, ...o }) => ({
         ...o,
         table_label: bills.get(o.bill_id)?.table_label || '-',

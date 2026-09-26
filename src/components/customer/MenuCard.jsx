@@ -51,7 +51,7 @@ export default function MenuCard({ item }) {
           {item.category && item.category !== 'ขนมโตเกียว' && <span className="badge badge-info">{item.category}</span>}
         </div>
 
-        <div className="mt-auto flex min-h-[48px] flex-wrap items-center justify-between gap-2 pt-3">
+        <div className="mt-auto flex min-h-[3rem] flex-wrap items-center justify-between gap-2 pt-3">
           <span className="font-display text-xl sm:text-2xl">{baht(item.price)}</span>
           {soldOut ? null : inCart ? (
             <QtyStepper value={inCart.qty} onChange={(q) => setQty(item.id, q)} size="sm" label={item.name} />

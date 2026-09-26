@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import BillsTable from '../../components/admin/BillsTable'
-import { RevenueBarChart, SalesBarChart } from '../../components/charts/Charts'
+import { ForecastLineChart, RevenueBarChart, SalesBarChart } from '../../components/charts/Charts'
 import PageHeader from '../../components/ui/PageHeader'
 import Button from '../../components/ui/Button'
 import Icon from '../../components/ui/Icon'
@@ -31,6 +31,7 @@ export default function Sales() {
   )
   const bills = useLiveQuery(() => api.listClosedBills(range), { live: true, deps: [range.from, range.to] })
   const costs = useLiveQuery(api.getCosts)
+  const forecast = useLiveQuery(api.getForecast)
 
   const all = bills.data || []
   const paid = all.filter((b) => b.status === 'paid')
@@ -160,6 +161,11 @@ export default function Sales() {
             <section className="card p-4">
               <h2 className="mb-2 font-bold">ต้นทุน (ตัวอย่าง)</h2>
               <SalesBarChart data={costs.data || []} height={220} />
+            </section>
+
+            <section className="card p-4">
+              <h2 className="mb-2 font-bold">สถิติคาดการณ์ (ตัวอย่าง)</h2>
+              <ForecastLineChart data={forecast.data || []} />
             </section>
           </div>
 

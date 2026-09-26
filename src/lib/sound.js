@@ -1,5 +1,12 @@
 // เสียงแจ้งเตือนสั้น ๆ (สร้างด้วย Web Audio ไม่ต้องโหลดไฟล์เสียง)
+import { readJSON, writeJSON } from './storage'
+
+const SOUND_KEY = 'th_sound_on'
 let ctx = null
+
+// เปิด/ปิดเสียงแจ้งเตือน (จำไว้ในเครื่องนี้)
+export const isSoundOn = () => readJSON(SOUND_KEY, true) !== false
+export const setSoundOn = (on) => writeJSON(SOUND_KEY, !!on)
 
 function getCtx() {
   const AC = window.AudioContext || window.webkitAudioContext
@@ -20,7 +27,8 @@ export function unlockAudio() {
   window.addEventListener('keydown', once)
 }
 
-export function playChime(kind = 'order') {
+export function playChime(kind = 'order', { force = false } = {}) {
+  if (!force && !isSoundOn()) return
   const ac = getCtx()
   if (!ac) return
   const notes = kind === 'call' ? [880, 660, 880, 660] : [660, 880, 1100]

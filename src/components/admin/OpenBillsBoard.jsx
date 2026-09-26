@@ -19,7 +19,7 @@ export default function OpenBillsBoard() {
 
   if (loading && !openBills.length) {
     return (
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
         {[0, 1].map((i) => (
           <div key={i} className="skeleton h-40" />
         ))}
@@ -30,7 +30,7 @@ export default function OpenBillsBoard() {
   return (
     <>
       {!openBills.length && <EmptyState icon="receipt" title="ยังไม่มีบิลที่เปิดอยู่" description="เมื่อลูกค้าสแกน QR และสั่งอาหาร บิลจะขึ้นที่นี่ทันที" />}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
         {sorted.map((b) => {
           const waiting = b.orders.filter((o) => o.status === ORDER_STATUS[0] || o.status === ORDER_STATUS[1]).length
           const paying = wantsToPay.has(b.table_id)

@@ -1,8 +1,14 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import Modal from '../ui/Modal'
 import Button from '../ui/Button'
 import Switch from '../ui/Switch'
+import CategoryPicker from './CategoryPicker'
 import Icon from '../ui/Icon'
+import Spinner from '../ui/Spinner'
+import { useToast } from '../ui/Toast'
+import { api } from '../../services/api'
+import { toThaiMessage } from '../../services/errors'
+import { compressImage } from '../../lib/image'
 import { cleanText } from '../../lib/security'
 import { PRODUCT_IMAGES } from '../../config/constants'
 
@@ -23,6 +29,31 @@ export default function MenuItemForm({ item, existing, categories, onSave, onDel
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploaded, setUploaded] = useState([]) // รูปที่อัปโหลดในรอบนี้
+  const fileRef = useRef(null)
+  const { toast } = useToast()
+
+  // รูปทั้งหมดให้เลือก: รูปที่เพิ่งอัปโหลด + รูปเดิมของเมนูนี้ (ถ้าไม่ใช่รูปในเครื่อง) + รูปตัวอย่าง
+  const gallery = [...new Set([...uploaded, item?.image, ...PRODUCT_IMAGES].filter(Boolean))]
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // เลือกไฟล์เดิมซ้ำได้
+    if (!file) return
+    setUploading(true)
+    try {
+      const blob = await compressImage(file)
+      const url = await api.uploadMenuImage(blob)
+      setUploaded((u) => [url, ...u])
+      setForm((f) => ({ ...f, image: url }))
+      toast(`อัปโหลดรูปแล้ว (${Math.round(blob.size / 1024)} KB) — กด “บันทึก” เพื่อใช้รูปนี้`, { type: 'success' })
+    } catch (err) {
+      toast(toThaiMessage(err), { type: 'error', duration: 5000 })
+    } finally {
+      setUploading(false)
+    }
+  }
 
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }))
 
@@ -34,7 +65,7 @@ export default function MenuItemForm({ item, existing, categories, onSave, onDel
     if (!cleanText(form.name, 80)) e.name = 'ใส่ชื่อเมนู'
     const price = Number(form.price)
     if (form.price === '' || !Number.isFinite(price) || price < 0 || price > 100000) e.price = 'ราคา 0–100,000 บาท'
-    if (!cleanText(form.category, 40)) e.category = 'ใส่หมวด'
+    if (!cleanText(form.category, 40)) e.category = 'เลือกหมวด หรือกด “เพิ่มหมวด”'
     setErrors(e)
     return !Object.keys(e).length
   }
@@ -100,7 +131,7 @@ export default function MenuItemForm({ item, existing, categories, onSave, onDel
             <Button variant="secondary" onClick={onClose}>
               ยกเลิก
             </Button>
-            <Button type="submit" form="menu-item-form" loading={saving} icon="check">
+            <Button type="submit" form="menu-item-form" loading={saving} disabled={uploading} icon="check">
               บันทึก
             </Button>
           </div>
@@ -121,25 +152,15 @@ export default function MenuItemForm({ item, existing, categories, onSave, onDel
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="sm:w-1/2 sm:pr-1.5">
           {field(
             'price',
             'ราคา (บาท)',
             <input id="menu-price" type="number" inputMode="numeric" min="0" className={`input ${errors.price ? 'input-error' : ''}`} value={form.price} onChange={(e) => set('price')(e.target.value)} placeholder="100" />,
           )}
-          {field(
-            'category',
-            'หมวด',
-            <>
-              <input id="menu-category" list="menu-categories" className={`input ${errors.category ? 'input-error' : ''}`} value={form.category} maxLength={40} onChange={(e) => set('category')(e.target.value)} />
-              <datalist id="menu-categories">
-                {categories.map((c) => (
-                  <option key={c} value={c} />
-                ))}
-              </datalist>
-            </>,
-          )}
         </div>
+
+        {field('category', 'หมวด', <CategoryPicker value={form.category} options={categories} onChange={set('category')} error={errors.category} />)}
 
         <div>
           <span className="field-label">ไส้</span>
@@ -161,8 +182,41 @@ export default function MenuItemForm({ item, existing, categories, onSave, onDel
 
         <div>
           <span className="field-label">รูปเมนู</span>
+          <div className="flex items-center gap-4">
+            <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-gray-100 ring-1 ring-black/10">
+              {form.image ? (
+                <img src={form.image} alt="รูปที่เลือก" className="h-full w-full object-cover" />
+              ) : (
+                <span className="grid h-full w-full place-items-center text-gray-400">
+                  <Icon name="noImage" size={28} />
+                </span>
+              )}
+              {uploading && (
+                <span className="absolute inset-0 grid place-items-center bg-white/70">
+                  <Spinner size={28} />
+                </span>
+              )}
+            </div>
+            <div className="min-w-0">
+              <Button variant="dark" size="sm" icon="imageAdd" loading={uploading} onClick={() => fileRef.current?.click()}>
+                {uploading ? 'กำลังอัปโหลด…' : 'อัปโหลดรูปใหม่'}
+              </Button>
+              <p className="mt-1.5 text-xs text-subtle">ถ่ายรูปหรือเลือกจากเครื่อง (JPG, PNG, WEBP ไม่เกิน 10 MB) ระบบย่อและตัดเป็นสี่เหลี่ยมให้อัตโนมัติ</p>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                className="sr-only"
+                tabIndex={-1}
+                onChange={handleFile}
+                aria-label="เลือกไฟล์รูปเมนู"
+              />
+            </div>
+          </div>
+
+          <p className="mb-1.5 mt-4 text-sm font-semibold text-gray-700">หรือเลือกจากรูปที่มี</p>
           <div className="grid grid-cols-6 gap-2 sm:grid-cols-8" role="radiogroup" aria-label="เลือกรูปเมนู">
-            {PRODUCT_IMAGES.map((src) => (
+            {gallery.map((src) => (
               <button
                 key={src}
                 type="button"

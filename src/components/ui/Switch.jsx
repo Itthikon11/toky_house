@@ -8,7 +8,7 @@ export default function Switch({ checked, onChange, label, onLabel, offLabel, di
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className="inline-flex min-h-[44px] items-center gap-2 disabled:opacity-50"
+      className="inline-flex min-h-[2.75rem] items-center gap-2 disabled:opacity-50"
     >
       <span className={`relative h-7 w-12 shrink-0 rounded-full transition ${checked ? 'bg-green-600' : 'bg-gray-300'}`}>
         <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${checked ? 'left-6' : 'left-1'}`} />

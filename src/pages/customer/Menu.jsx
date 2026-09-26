@@ -138,7 +138,7 @@ export default function Menu() {
               to="/checkout"
               className="mx-auto flex max-w-md items-center gap-3 rounded-full bg-brand-ink py-2 pl-2 pr-5 text-white shadow-card transition active:scale-[0.98]"
             >
-              <span key={cartCount} className="grid h-10 min-w-[40px] animate-pop place-items-center rounded-full bg-brand-yellow px-2 font-bold text-brand-ink">
+              <span key={cartCount} className="grid h-10 min-w-[2.5rem] animate-pop place-items-center rounded-full bg-brand-yellow px-2 font-bold text-brand-ink">
                 {cartCount}
               </span>
               <span className="flex-1 font-semibold">ดูตะกร้า / ยืนยันสั่ง</span>

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import Icon from '../ui/Icon'
 
-const ITEM = 'flex min-h-[44px] items-center gap-2 transition hover:text-brand-ink'
+const ITEM = 'flex min-h-[2.75rem] items-center gap-2 transition hover:text-brand-ink'
 const DOT = 'grid h-8 w-8 place-items-center rounded-full bg-brand-ink text-white'
 
 export default function Footer() {

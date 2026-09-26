@@ -3,8 +3,8 @@ export default function Spinner({ size = 20, className = '' }) {
     <span
       role="status"
       aria-label="กำลังโหลด"
-      style={{ width: size, height: size }}
-      className={`inline-block shrink-0 animate-spin rounded-full border-[3px] border-current border-t-transparent opacity-70 ${className}`}
+      style={{ width: `${size / 16}rem`, height: `${size / 16}rem` }}
+      className={`inline-block shrink-0 animate-spin rounded-full border-[0.1875rem] border-current border-t-transparent opacity-70 ${className}`}
     />
   )
 }

@@ -25,8 +25,8 @@ export default {
         bar: '0 -8px 24px -12px rgba(0,0,0,0.18)',
       },
       spacing: {
-        nav: '64px', //    ความสูงแถบเมนูล่าง (มือถือ)
-        header: '64px', // ความสูงแถบบน
+        nav: '4rem', //    ความสูงแถบเมนูล่าง (มือถือ)
+        header: '4rem', // ความสูงแถบบน
       },
       keyframes: {
         float: {

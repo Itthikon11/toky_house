@@ -9,7 +9,7 @@ export default function BottomNav() {
   const { openSheet } = useCallStaff()
 
   const item = ({ isActive }) =>
-    `relative flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold transition ${
+    `relative flex flex-1 flex-col items-center justify-center gap-0.5 text-[0.6875rem] font-semibold transition ${
       isActive ? 'text-brand-ink' : 'text-gray-500'
     }`
 
@@ -37,7 +37,7 @@ export default function BottomNav() {
                 {cartCount > 0 && (
                   <span
                     key={cartCount}
-                    className="absolute -right-0.5 -top-1 grid h-5 min-w-[20px] animate-pop place-items-center rounded-full bg-red-600 px-1 text-[11px] font-bold text-white"
+                    className="absolute -right-0.5 -top-1 grid h-5 min-w-[1.25rem] animate-pop place-items-center rounded-full bg-red-600 px-1 text-[0.6875rem] font-bold text-white"
                   >
                     {cartCount}
                   </span>
@@ -57,7 +57,7 @@ export default function BottomNav() {
             </>
           )}
         </NavLink>
-        <button type="button" onClick={openSheet} className="flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-bold">
+        <button type="button" onClick={openSheet} className="flex flex-1 flex-col items-center justify-center gap-0.5 text-[0.6875rem] font-bold">
           <span className="grid h-9 w-14 place-items-center rounded-full bg-brand-ink text-white shadow-soft">
             <Icon name="hand" size={20} />
           </span>

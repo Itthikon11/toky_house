@@ -53,9 +53,9 @@ export default function Hero() {
           </Link>
 
           <div className="mt-8 flex items-center gap-4 text-gray-600">
-            <span className="h-[2px] w-16 bg-black/40" />
+            <span className="h-[0.125rem] w-16 bg-black/40" />
             <span className="text-xl tracking-[0.3em]">東京ハウス</span>
-            <span className="h-[2px] w-16 bg-black/40" />
+            <span className="h-[0.125rem] w-16 bg-black/40" />
           </div>
         </motion.div>
 

@@ -74,13 +74,6 @@ export default function Navbar() {
               {l.label}
             </NavLink>
           ))}
-          {isAdmin && (
-            <a href="/kitchen.html" target="_blank" rel="noopener" className="nav-link">
-              <Icon name="chef" size={18} />
-              จอครัว
-              <Icon name="external" size={14} className="text-subtle" />
-            </a>
-          )}
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
@@ -94,7 +87,7 @@ export default function Navbar() {
               >
                 <Icon name={calls.length ? 'bellRing' : 'bell'} size={22} className={calls.length ? 'text-red-600' : ''} />
                 {calls.length > 0 && (
-                  <span className="absolute -right-1 -top-1 grid h-5 min-w-[20px] animate-pulse place-items-center rounded-full bg-red-600 px-1 text-xs font-bold text-white">
+                  <span className="absolute -right-1 -top-1 grid h-5 min-w-[1.25rem] animate-pulse place-items-center rounded-full bg-red-600 px-1 text-xs font-bold text-white">
                     {calls.length}
                   </span>
                 )}
@@ -105,7 +98,7 @@ export default function Navbar() {
                   type="button"
                   onClick={() => setUserMenu((v) => !v)}
                   aria-expanded={userMenu}
-                  className="flex min-h-[44px] items-center gap-2 rounded-full bg-white px-3 font-semibold ring-1 ring-black/10 transition hover:bg-gray-50"
+                  className="flex min-h-[2.75rem] items-center gap-2 rounded-full bg-white px-3 font-semibold ring-1 ring-black/10 transition hover:bg-gray-50"
                 >
                   <Icon name="user" size={22} />
                   พนักงาน
@@ -143,7 +136,7 @@ export default function Navbar() {
               >
                 <Icon name="bag" size={22} />
                 {cartCount > 0 && (
-                  <span key={cartCount} className="absolute -right-1 -top-1 grid h-5 min-w-[20px] animate-pop place-items-center rounded-full bg-red-600 px-1 text-xs font-bold text-white">
+                  <span key={cartCount} className="absolute -right-1 -top-1 grid h-5 min-w-[1.25rem] animate-pop place-items-center rounded-full bg-red-600 px-1 text-xs font-bold text-white">
                     {cartCount}
                   </span>
                 )}
@@ -151,11 +144,11 @@ export default function Navbar() {
               {session && (
                 <Link
                   to="/bill"
-                  className="flex min-h-[44px] items-center gap-1.5 rounded-full border-2 border-brand-yellow bg-white px-3 text-sm font-bold"
+                  className="flex min-h-[2.75rem] items-center gap-1.5 rounded-full border-2 border-brand-yellow bg-white px-3 text-sm font-bold"
                   aria-label={`${session.label} — ดูบิล`}
                 >
                   <Icon name="map" size={18} />
-                  <span className="max-w-[110px] truncate">{session.label}</span>
+                  <span className="max-w-[6.875rem] truncate">{session.label}</span>
                 </Link>
               )}
             </>
@@ -189,7 +182,7 @@ export default function Navbar() {
                   to={l.to}
                   end={l.end}
                   className={({ isActive }) =>
-                    `flex min-h-[48px] items-center gap-3 rounded-2xl px-4 font-semibold ${isActive ? 'bg-brand-yellow' : 'hover:bg-gray-100'}`
+                    `flex min-h-[3rem] items-center gap-3 rounded-2xl px-4 font-semibold ${isActive ? 'bg-brand-yellow' : 'hover:bg-gray-100'}`
                   }
                 >
                   <Icon name={l.icon} size={20} />
@@ -198,10 +191,7 @@ export default function Navbar() {
               ))}
               {isAdmin && (
                 <>
-                  <a href="/kitchen.html" className="flex min-h-[48px] items-center gap-3 rounded-2xl px-4 font-semibold hover:bg-gray-100">
-                    <Icon name="chef" size={20} /> จอครัว
-                  </a>
-                  <button type="button" onClick={handleLogout} className="flex min-h-[48px] items-center gap-3 rounded-2xl px-4 text-left font-semibold text-red-600 hover:bg-red-50">
+                  <button type="button" onClick={handleLogout} className="flex min-h-[3rem] items-center gap-3 rounded-2xl px-4 text-left font-semibold text-red-600 hover:bg-red-50">
                     <Icon name="logout" size={20} /> ออกจากระบบ
                   </button>
                 </>

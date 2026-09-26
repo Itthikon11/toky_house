@@ -4,7 +4,7 @@
 // ดูรายละเอียดสิทธิ์ทั้งหมดที่ supabase/schema.sql
 
 import { supabase } from '../../lib/supabase'
-import { randomToken, cleanText } from '../../lib/security'
+import { randomId, randomToken, cleanText } from '../../lib/security'
 import { byCode } from '../../lib/format'
 import { BILL_STATUS, PAYMENT_METHODS } from '../../config/constants'
 import { AppError } from '../errors'
@@ -109,6 +109,15 @@ export async function setMenuAvailability(id, available) {
   return true
 }
 
+// อัปโหลดรูปเมนูไปที่ Supabase Storage (bucket "menu-images" — สร้างไว้ใน schema.sql)
+export async function uploadMenuImage(blob) {
+  const ext = blob.type === 'image/webp' ? 'webp' : 'jpg'
+  const path = `${randomId()}.${ext}`
+  const bucket = supabase.storage.from('menu-images')
+  unwrap(await bucket.upload(path, blob, { contentType: blob.type, cacheControl: '31536000', upsert: false }))
+  return bucket.getPublicUrl(path).data.publicUrl
+}
+
 export async function deleteMenuItems(ids) {
   unwrap(await supabase.from('menu_items').delete().in('id', ids))
   return true
@@ -160,15 +169,14 @@ export async function updateOrderStatus(orderId, status) {
   return true
 }
 
-// จอครัว: ออเดอร์ 12 ชม. ล่าสุดที่ไม่ถูกยกเลิก พร้อมชื่อโต๊ะ
+// คิวออเดอร์ในแดชบอร์ด: ทุกรอบที่ยังไม่เสิร์ฟ (ไม่จำกัดเวลา) + ที่เสิร์ฟแล้วใน 12 ชม. พร้อมชื่อโต๊ะ
 export async function listKitchenOrders() {
   const since = new Date(Date.now() - 12 * 3600 * 1000).toISOString()
   const rows = unwrap(
     await supabase
       .from('orders')
       .select('id, bill_id, round, items, total, note, status, created_at, bills(table_label, is_takeaway)')
-      .gte('created_at', since)
-      .neq('status', 'ยกเลิก')
+      .or(`status.in.("รับออเดอร์","กำลังทำ"),and(status.eq."เสิร์ฟแล้ว",created_at.gte."${since}")`)
       .order('created_at', { ascending: true })
       .limit(500),
   )

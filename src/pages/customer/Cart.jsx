@@ -67,7 +67,7 @@ export default function Cart() {
             action={<Button to="/order" icon="food">เลือกเมนู</Button>}
           />
         ) : (
-          <div className="grid gap-5 lg:grid-cols-[1fr_380px] lg:items-start">
+          <div className="grid gap-5 lg:grid-cols-[1fr_23.75rem] lg:items-start">
             {/* รายการ */}
             <div className="space-y-3">
               <AnimatePresence initial={false}>

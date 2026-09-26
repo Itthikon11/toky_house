@@ -128,7 +128,7 @@ export default function Tables() {
                       {t.active ? 'ปิด' : 'เปิด'}
                     </Button>
                   </div>
-                  <a href={`${PUBLIC_URL}/t/${t.token}`} target="_blank" rel="noopener" className="inline-flex min-h-[32px] items-center gap-1 text-xs font-semibold text-subtle hover:text-brand-ink">
+                  <a href={`${PUBLIC_URL}/t/${t.token}`} target="_blank" rel="noopener" className="inline-flex min-h-[2rem] items-center gap-1 text-xs font-semibold text-subtle hover:text-brand-ink">
                     ทดลองเปิดลิงก์ <Icon name="external" size={12} />
                   </a>
                 </div>

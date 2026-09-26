@@ -1,6 +1,5 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
-import { resolve } from 'node:path'
 
 // Content-Security-Policy ใส่เฉพาะตอน build (ตอน dev Vite ต้องใช้ inline script สำหรับ HMR)
 function cspPlugin(env) {
@@ -10,7 +9,7 @@ function cspPlugin(env) {
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
-    "img-src 'self' data: blob:",
+    `img-src 'self' data: blob: https://${supabase}`,
     `connect-src 'self' https://${supabase} wss://${supabase}`,
     'frame-src https://www.google.com',
     "object-src 'none'",
@@ -41,11 +40,6 @@ export default defineConfig(({ mode }) => {
     build: {
       sourcemap: false,
       rollupOptions: {
-        // 2 หน้า: แอปหลัก (React) + จอครัว (JS ล้วน)
-        input: {
-          main: resolve(__dirname, 'index.html'),
-          kitchen: resolve(__dirname, 'kitchen.html'),
-        },
         output: {
           manualChunks: {
             react: ['react', 'react-dom', 'react-router-dom'],

@@ -1,15 +1,17 @@
+import { useState } from 'react'
 import StaffCallsPanel from '../../components/admin/StaffCallsPanel'
 import OpenBillsBoard from '../../components/admin/OpenBillsBoard'
+import OrderQueue, { useKitchenOrders } from '../../components/admin/OrderQueue'
 import StatCard from '../../components/admin/StatCard'
 import { useAdminLive } from '../../components/admin/AdminLiveProvider'
-import { SalesBarChart, ForecastLineChart } from '../../components/charts/Charts'
 import PageHeader from '../../components/ui/PageHeader'
 import Button from '../../components/ui/Button'
 import Icon from '../../components/ui/Icon'
 import { useLiveQuery } from '../../hooks/useLiveQuery'
+import { useWakeLock } from '../../hooks/useWakeLock'
 import { api, isDemoMode, usingDefaultPassword } from '../../services/api'
-import { ORDER_STATUS } from '../../config/constants'
 import { baht, localDateKey } from '../../lib/format'
+import { isSoundOn, playChime, setSoundOn } from '../../lib/sound'
 
 function startOfToday() {
   const d = new Date()
@@ -17,28 +19,45 @@ function startOfToday() {
   return d.toISOString()
 }
 
+// หน้าทำงานหลักของร้าน (รวมจอครัวไว้ด้วย): คิวออเดอร์ · เรียกพนักงาน · บิลที่ยังไม่ชำระ
+// เปิดทิ้งไว้บนแท็บเล็ต/คอมที่เคาน์เตอร์ได้ — จอไม่ดับ มีเสียงเตือน
 export default function Dashboard() {
   const { openBills, calls } = useAdminLive()
   const today = useLiveQuery(() => api.listClosedBills({ from: startOfToday() }), { live: true, interval: 60000 })
-  const costs = useLiveQuery(api.getCosts)
-  const forecast = useLiveQuery(api.getForecast)
+  const kitchen = useKitchenOrders()
+  const [sound, setSound] = useState(isSoundOn)
+  useWakeLock()
 
   const todayKey = localDateKey(new Date())
   const paidTodayBills = (today.data || []).filter((b) => b.status === 'paid' && localDateKey(b.paid_at) === todayKey)
   const paidToday = paidTodayBills.reduce((s, b) => s + Number(b.total), 0)
-  const waitingRounds = openBills.flatMap((b) => b.orders).filter((o) => o.status === ORDER_STATUS[0] || o.status === ORDER_STATUS[1]).length
   const openTotal = openBills.reduce((s, b) => s + Number(b.total), 0)
+
+  const toggleSound = () => {
+    const next = !sound
+    setSoundOn(next)
+    setSound(next)
+    if (next) playChime('order', { force: true }) // ทดสอบเสียงให้ได้ยิน
+  }
+
+  const toggleFullscreen = () =>
+    document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.()
 
   return (
     <div className="page">
       <div className="container-app">
         <PageHeader
           title="แดชบอร์ด"
-          subtitle="อัปเดตอัตโนมัติ — มีเสียงเตือนเมื่อมีออเดอร์ใหม่หรือโต๊ะเรียก"
+          subtitle="อัปเดตอัตโนมัติ — ออเดอร์ใหม่และโต๊ะที่เรียกจะเด้งพร้อมเสียง"
           actions={
-            <Button href="/kitchen.html" target="_blank" rel="noopener" variant="secondary" size="sm" icon="chef" iconRight="external">
-              เปิดจอครัว
-            </Button>
+            <>
+              <Button variant={sound ? 'secondary' : 'ghost'} size="sm" icon={sound ? 'soundOn' : 'soundOff'} onClick={toggleSound} aria-pressed={sound}>
+                {sound ? 'เสียงเปิด' : 'เสียงปิด'}
+              </Button>
+              <Button variant="secondary" size="sm" icon="fullscreen" onClick={toggleFullscreen} className="hidden sm:inline-flex">
+                เต็มจอ
+              </Button>
+            </>
           }
         />
 
@@ -63,32 +82,22 @@ export default function Dashboard() {
 
         <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
           <StatCard icon="bellRing" label="เรียกพนักงาน" value={calls.length} alert={calls.length > 0} />
+          <StatCard icon="cooking" label="รอทำ / รอเสิร์ฟ" value={`${kitchen.pending.length} รอบ`} />
           <StatCard icon="receipt" label="ยังไม่ชำระ" value={`${openBills.length} โต๊ะ`} sub={`รวม ${baht(openTotal)}`} />
-          <StatCard icon="cooking" label="รอครัว" value={`${waitingRounds} รอบ`} />
           <StatCard icon="cash" label="รับชำระวันนี้" value={baht(paidToday)} sub={`${paidTodayBills.length} บิล`} />
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_1fr]">
-          {/* มือถือ: เรียกพนักงานขึ้นก่อน (เรื่องด่วนที่สุด) */}
-          <div className="order-2 lg:order-1">
+        {/* มือถือ: เรียกพนักงาน → คิวออเดอร์ → บิล / จอใหญ่: คิวซ้าย, เรียกพนักงาน + บิลขวา */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.25fr_1fr] lg:grid-rows-[auto_1fr] lg:items-start">
+          <div className="lg:col-start-2 lg:row-start-1">
+            <StaffCallsPanel />
+          </div>
+          <div className="lg:col-start-1 lg:row-span-2 lg:row-start-1">
+            <OrderQueue kitchen={kitchen} />
+          </div>
+          <div className="lg:col-start-2 lg:row-start-2">
             <h2 className="section-title mb-3">บิลที่ยังไม่ชำระ</h2>
             <OpenBillsBoard />
-          </div>
-
-          <div className="order-1 space-y-6 lg:order-2">
-            <StaffCallsPanel />
-            <div className="hidden lg:block">
-              <h2 className="section-title mb-3">ต้นทุน (ตัวอย่าง)</h2>
-              <div className="card p-4">
-                <SalesBarChart data={costs.data || []} />
-              </div>
-            </div>
-            <div className="hidden lg:block">
-              <h2 className="section-title mb-3">สถิติคาดการณ์ (ตัวอย่าง)</h2>
-              <div className="card p-4">
-                <ForecastLineChart data={forecast.data || []} />
-              </div>
-            </div>
           </div>
         </div>
       </div>

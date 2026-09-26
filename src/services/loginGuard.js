@@ -1,4 +1,4 @@
-// ล็อกการเข้าสู่ระบบชั่วคราวเมื่อใส่รหัสผิดติดกันหลายครั้ง (ใช้ทั้งแอปหลักและจอครัว)
+// ล็อกการเข้าสู่ระบบชั่วคราวเมื่อใส่รหัสผิดติดกันหลายครั้ง
 import { LIMITS, STORAGE_KEYS } from '../config/constants'
 import { readJSON, remove, writeJSON } from '../lib/storage'
 import { AppError, errorCode } from './errors'

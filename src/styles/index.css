@@ -21,6 +21,13 @@
   html {
     -webkit-text-size-adjust: 100%;
   }
+  /* จอคอม/จอใหญ่ (≥1280px): ขยายทั้งหน้า 125% ให้อ่านง่ายจากระยะไกล
+     ทุกขนาดในระบบเป็น rem จึงขยายตามพร้อมกันหมด — มือถือ/แท็บเล็ตคงขนาดเดิม */
+  @media (min-width: 1280px) {
+    html {
+      font-size: 125%;
+    }
+  }
   body {
     @apply bg-white font-sans text-brand-ink antialiased;
     margin: 0;
@@ -73,13 +80,13 @@
 
   /* ---------- ปุ่ม (สูงอย่างน้อย 44px ตามมาตรฐานการแตะบนมือถือ) ---------- */
   .btn {
-    @apply inline-flex min-h-[44px] select-none items-center justify-center gap-2 whitespace-nowrap rounded-full px-5 py-2.5 text-base font-bold leading-none transition active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex min-h-[2.75rem] select-none items-center justify-center gap-2 whitespace-nowrap rounded-full px-5 py-2.5 text-base font-bold leading-none transition active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50;
   }
   .btn-sm {
-    @apply min-h-[36px] px-4 py-2 text-sm;
+    @apply min-h-[2.25rem] px-4 py-2 text-sm;
   }
   .btn-lg {
-    @apply min-h-[52px] px-6 text-lg;
+    @apply min-h-[3.25rem] px-6 text-lg;
   }
   .btn-block {
     @apply w-full;
@@ -142,7 +149,7 @@
 
   /* ---------- ตัวกรอง ---------- */
   .chip {
-    @apply inline-flex min-h-[40px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-white px-4 text-sm font-semibold text-gray-700 shadow-soft ring-1 ring-black/5 transition hover:bg-gray-50;
+    @apply inline-flex min-h-[2.5rem] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-white px-4 text-sm font-semibold text-gray-700 shadow-soft ring-1 ring-black/5 transition hover:bg-gray-50;
   }
   .chip-active {
     @apply bg-brand-ink text-white ring-brand-ink hover:bg-brand-ink;
@@ -174,7 +181,7 @@
 
   /* ---------- เมนูนำทาง ---------- */
   .nav-link {
-    @apply inline-flex min-h-[40px] items-center gap-1.5 rounded-full px-4 font-semibold text-gray-700 transition-colors hover:bg-black/5 hover:text-brand-ink;
+    @apply inline-flex min-h-[2.5rem] items-center gap-1.5 rounded-full px-4 font-semibold text-gray-700 transition-colors hover:bg-black/5 hover:text-brand-ink;
   }
   .nav-link-active {
     @apply bg-brand-yellow text-brand-ink hover:bg-brand-yellow;

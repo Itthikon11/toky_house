@@ -75,7 +75,7 @@ export default function BillDetailModal({ bill, onClose, onChanged }) {
               role="radio"
               aria-checked={method === key}
               onClick={() => setMethod(key)}
-              className={`flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border-2 px-3 text-sm font-bold transition ${
+              className={`flex min-h-[3.25rem] items-center justify-center gap-2 rounded-2xl border-2 px-3 text-sm font-bold transition ${
                 method === key ? 'border-green-600 bg-green-50 text-green-800' : 'border-black/10 text-gray-700 hover:bg-gray-50'
               }`}
             >
@@ -87,7 +87,7 @@ export default function BillDetailModal({ bill, onClose, onChanged }) {
         <Button variant="success" size="lg" block icon="check" loading={busy === 'pay'} onClick={pay}>
           รับชำระ {baht(bill.total)}
         </Button>
-        <button type="button" onClick={() => setConfirmCancel(true)} className="mx-auto block min-h-[36px] text-sm font-semibold text-red-600 underline-offset-4 hover:underline">
+        <button type="button" onClick={() => setConfirmCancel(true)} className="mx-auto block min-h-[2.25rem] text-sm font-semibold text-red-600 underline-offset-4 hover:underline">
           ยกเลิกทั้งบิล
         </button>
       </div>
@@ -144,7 +144,7 @@ export default function BillDetailModal({ bill, onClose, onChanged }) {
                   aria-checked={o.status === s}
                   disabled={!!busy}
                   onClick={() => o.status !== s && run(`o-${o.id}`, () => api.updateOrderStatus(o.id, s))}
-                  className={`min-h-[36px] rounded-full px-1 text-xs font-bold transition disabled:opacity-60 ${
+                  className={`min-h-[2.25rem] rounded-full px-1 text-xs font-bold transition disabled:opacity-60 ${
                     o.status === s ? (s === ORDER_STATUS_CANCELLED ? 'bg-red-600 text-white' : 'bg-brand-ink text-white') : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >

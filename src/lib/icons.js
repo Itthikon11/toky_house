@@ -1,4 +1,4 @@
-// ชุดไอคอนของทั้งระบบ (Lucide, ISC License) — ใช้ร่วมกันทั้งแอป React และจอครัว
+// ชุดไอคอนของทั้งระบบ (Lucide, ISC License) — ใช้ผ่าน <Icon name="..." />
 // ใช้ไอคอน SVG แทนอีโมจิ เพื่อให้หน้าตาเหมือนกันทุกเครื่อง/ทุกระบบปฏิบัติการ
 import {
   ArrowLeft,
@@ -23,6 +23,7 @@ import {
   Hand,
   House,
   ImageOff,
+  ImagePlus,
   Info,
   LayoutGrid,
   Lock,
@@ -81,6 +82,7 @@ export const ICONS = {
   hand: Hand,
   home: House,
   noImage: ImageOff,
+  imageAdd: ImagePlus,
   info: Info,
   grid: LayoutGrid,
   lock: Lock,
@@ -114,29 +116,4 @@ export const ICONS = {
   soundOff: VolumeX,
   offline: WifiOff,
   close: X,
-}
-
-// สำหรับหน้า HTML/JS ล้วน (จอครัว): คืนค่าเป็น <svg> element
-export function iconElement(name, { size = 20, strokeWidth = 2, className = '' } = {}) {
-  const NS = 'http://www.w3.org/2000/svg'
-  const svg = document.createElementNS(NS, 'svg')
-  const attrs = {
-    width: size,
-    height: size,
-    viewBox: '0 0 24 24',
-    fill: 'none',
-    stroke: 'currentColor',
-    'stroke-width': strokeWidth,
-    'stroke-linecap': 'round',
-    'stroke-linejoin': 'round',
-    'aria-hidden': 'true',
-    class: `icon ${className}`.trim(),
-  }
-  for (const [k, v] of Object.entries(attrs)) svg.setAttribute(k, v)
-  for (const [tag, a] of ICONS[name] || []) {
-    const child = document.createElementNS(NS, tag)
-    for (const [k, v] of Object.entries(a)) child.setAttribute(k, v)
-    svg.append(child)
-  }
-  return svg
 }

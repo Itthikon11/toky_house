@@ -89,7 +89,7 @@ export function CallStaffProvider({ children }) {
                   type="button"
                   disabled={!!sending || wait > 0}
                   onClick={() => call(key)}
-                  className="flex min-h-[64px] w-full items-center gap-3 rounded-2xl border-2 border-black/10 bg-white px-4 py-3 text-left transition hover:border-brand-yellowDark hover:bg-brand-yellowSoft disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex min-h-[4rem] w-full items-center gap-3 rounded-2xl border-2 border-black/10 bg-white px-4 py-3 text-left transition hover:border-brand-yellowDark hover:bg-brand-yellowSoft disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brand-sky">
                     <Icon name={r.icon} size={22} />

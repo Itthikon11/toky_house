@@ -17,7 +17,7 @@ export default function BillsTable({ bills, onChanged }) {
 
   return (
     <>
-      <ul className="card nice-scroll max-h-[640px] divide-y divide-black/5 overflow-y-auto">
+      <ul className="card nice-scroll max-h-[40rem] divide-y divide-black/5 overflow-y-auto">
         {bills.map((b) => (
           <li key={b.id}>
             <button
