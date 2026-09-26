@@ -1,101 +1,171 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import OrdersTable from '../../components/OrdersTable'
-import { SalesBarChart } from '../../components/Charts'
-import { getOrders, updateOrderStatus, getMonthlySales } from '../../lib/data'
+import BillsTable from '../../components/admin/BillsTable'
+import { RevenueBarChart, SalesBarChart } from '../../components/charts/Charts'
+import PageHeader from '../../components/ui/PageHeader'
+import Button from '../../components/ui/Button'
+import Icon from '../../components/ui/Icon'
+import { PageLoader } from '../../components/ui/Spinner'
+import { useLiveQuery } from '../../hooks/useLiveQuery'
+import { api } from '../../services/api'
+import { BILL_STATUS_LABEL, PAYMENT_METHOD_ICON, PAYMENT_METHODS } from '../../config/constants'
+import { baht, dateTimeOf, localDateKey, mergeBillItems } from '../../lib/format'
+import { csvCell } from '../../lib/security'
+
+function daysAgo(n) {
+  const d = new Date()
+  d.setDate(d.getDate() - n)
+  return localDateKey(d)
+}
 
 export default function Sales() {
-  const [orders, setOrders] = useState([])
-  const [sales, setSales] = useState([])
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
+  const [from, setFrom] = useState(daysAgo(6))
+  const [to, setTo] = useState(daysAgo(0))
 
-  useEffect(() => {
-    getOrders().then(setOrders)
-    getMonthlySales().then(setSales)
-  }, [])
+  const range = useMemo(
+    () => ({
+      from: from ? new Date(`${from}T00:00:00`).toISOString() : null,
+      to: to ? new Date(`${to}T23:59:59.999`).toISOString() : null,
+    }),
+    [from, to],
+  )
+  const bills = useLiveQuery(() => api.listClosedBills(range), { live: true, deps: [range.from, range.to] })
+  const costs = useLiveQuery(api.getCosts)
 
-  const handleStatus = async (id, status) => {
-    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)))
-    await updateOrderStatus(id, status)
+  const all = bills.data || []
+  const paid = all.filter((b) => b.status === 'paid')
+  const totalMoney = paid.reduce((s, b) => s + Number(b.total), 0)
+  const byMethod = Object.keys(PAYMENT_METHODS).map((m) => ({
+    method: m,
+    total: paid.filter((b) => b.payment_method === m).reduce((s, b) => s + Number(b.total), 0),
+  }))
+
+  // ยอดขายรายวันตามช่วงที่เลือก
+  const daily = useMemo(() => {
+    const map = new Map()
+    if (from && to) {
+      for (let d = new Date(`${from}T00:00:00`); localDateKey(d) <= to && map.size < 62; d.setDate(d.getDate() + 1)) {
+        map.set(localDateKey(d), 0)
+      }
+    }
+    paid.forEach((b) => {
+      const k = localDateKey(b.paid_at)
+      map.set(k, (map.get(k) || 0) + Number(b.total))
+    })
+    return [...map.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => ({ label: k.slice(5).split('-').reverse().join('/'), ยอดขาย: v }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bills.data, from, to])
+
+  const exportCSV = () => {
+    const header = ['วันเวลา', 'โต๊ะ', 'รายการ', 'จำนวนรอบ', 'ยอด', 'สถานะ', 'วิธีชำระ']
+    const lines = all.map((b) =>
+      [
+        dateTimeOf(b.paid_at || b.updated_at),
+        b.table_label,
+        mergeBillItems(b.orders).map((i) => `${i.qty}x ${i.name}`).join(' | '),
+        b.orders.length,
+        b.total,
+        BILL_STATUS_LABEL[b.status],
+        PAYMENT_METHODS[b.payment_method] || '',
+      ]
+        .map(csvCell)
+        .join(','),
+    )
+    const csv = '﻿' + [header.join(','), ...lines].join('\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `tokyo-house-sales-${from}-to-${to}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
-  // ยอดเงินทั้งหมดจากออเดอร์ที่ชำระแล้ว (กรองตามช่วงวันที่ได้)
-  const totalMoney = useMemo(() => {
-    const f = from ? new Date(from) : null
-    const t = to ? new Date(to + 'T23:59:59') : null
-    return orders
-      .filter((o) => o.status === 'ชำระแล้ว')
-      .filter((o) => {
-        const d = new Date(o.created_at)
-        if (f && d < f) return false
-        if (t && d > t) return false
-        return true
-      })
-      .reduce((s, o) => s + o.total, 0)
-  }, [orders, from, to])
-
-  // ยอดขายรวมสะสม (ตัวอย่าง) — บวกฐานเดโมให้เหมือนภาพ
-  const grandTotal = 19000 + totalMoney
+  const presets = [
+    { label: 'วันนี้', from: daysAgo(0) },
+    { label: '7 วัน', from: daysAgo(6) },
+    { label: '30 วัน', from: daysAgo(29) },
+  ]
 
   return (
-    <div className="bg-sky-gradient min-h-screen px-4 py-8">
-      <div className="mx-auto max-w-7xl">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.5fr_1fr]">
-          {/* ซ้าย: ออเดอร์ล่าสุด */}
-          <div>
-            <h2 className="mb-3 font-display text-3xl">ออเดอร์ล่าสุด</h2>
-            <OrdersTable orders={orders} onStatusChange={handleStatus} />
+    <div className="page">
+      <div className="container-app">
+        <PageHeader
+          title="ยอดขาย"
+          subtitle="นับเฉพาะบิลที่พนักงานกด “รับชำระ” แล้ว"
+          actions={
+            <Button variant="secondary" size="sm" icon="download" onClick={exportCSV} disabled={!all.length}>
+              CSV
+            </Button>
+          }
+        />
+
+        {/* ช่วงวันที่ */}
+        <div className="card mb-5 flex flex-col gap-3 p-4 md:flex-row md:items-end">
+          <div className="flex gap-2">
+            {presets.map((p) => (
+              <button
+                key={p.label}
+                type="button"
+                onClick={() => {
+                  setFrom(p.from)
+                  setTo(daysAgo(0))
+                }}
+                className={`chip ${from === p.from && to === daysAgo(0) ? 'chip-active' : ''}`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <div className="grid flex-1 grid-cols-2 gap-2 md:max-w-md">
+            <label>
+              <span className="field-label">ตั้งแต่</span>
+              <input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} className="input" />
+            </label>
+            <label>
+              <span className="field-label">ถึง</span>
+              <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} className="input" />
+            </label>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1.4fr]">
+          <div className="space-y-4">
+            <motion.section key={totalMoney} initial={{ scale: 0.98 }} animate={{ scale: 1 }} className="card p-5" aria-label="สรุปยอด">
+              <div className="text-sm font-semibold text-subtle">รับชำระทั้งหมด</div>
+              <div className="font-display text-5xl">{baht(totalMoney)}</div>
+              <div className="mt-4 grid grid-cols-3 gap-2 border-t border-black/5 pt-4 text-sm">
+                <div>
+                  <div className="text-subtle">จำนวนบิล</div>
+                  <div className="text-lg font-bold">{paid.length}</div>
+                </div>
+                {byMethod.map((m) => (
+                  <div key={m.method}>
+                    <div className="flex items-center gap-1 text-subtle">
+                      <Icon name={PAYMENT_METHOD_ICON[m.method]} size={14} />
+                      {m.method === 'cash' ? 'เงินสด' : 'โอน'}
+                    </div>
+                    <div className="text-lg font-bold">{baht(m.total)}</div>
+                  </div>
+                ))}
+              </div>
+            </motion.section>
+
+            <section className="card p-4" aria-label="กราฟยอดขายรายวัน">
+              <h2 className="mb-2 font-bold">ยอดขายรายวัน</h2>
+              <RevenueBarChart data={daily} />
+            </section>
+
+            <section className="card p-4">
+              <h2 className="mb-2 font-bold">ต้นทุน (ตัวอย่าง)</h2>
+              <SalesBarChart data={costs.data || []} height={220} />
+            </section>
           </div>
 
-          {/* ขวา: ยอดขายทั้งหมด */}
           <div>
-            <h2 className="mb-3 font-display text-3xl">ยอดขายทั้งหมด</h2>
-
-            {/* ช่วงวันที่ */}
-            <div className="card mb-4 flex flex-wrap items-center gap-2 p-4">
-              <span className="font-semibold">วันที่</span>
-              <input
-                type="date"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                className="rounded-xl border border-black/10 px-3 py-2 outline-none focus:border-brand-yellow"
-              />
-              <span>ถึง</span>
-              <input
-                type="date"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                className="rounded-xl border border-black/10 px-3 py-2 outline-none focus:border-brand-yellow"
-              />
-              {(from || to) && (
-                <button
-                  onClick={() => {
-                    setFrom('')
-                    setTo('')
-                  }}
-                  className="ml-auto text-sm text-black/50 underline"
-                >
-                  ล้าง
-                </button>
-              )}
-            </div>
-
-            <div className="card p-4">
-              <SalesBarChart data={sales} height={280} />
-            </div>
-
-            <motion.div
-              key={grandTotal}
-              initial={{ scale: 0.96 }}
-              animate={{ scale: 1 }}
-              className="card mt-4 flex items-center justify-between p-6"
-            >
-              <span className="text-lg font-semibold">จำนวนเงินทั้งหมด</span>
-              <span className="font-display text-4xl">
-                {grandTotal.toLocaleString()}฿
-              </span>
-            </motion.div>
+            <h2 className="section-title mb-3">ประวัติบิล</h2>
+            {bills.loading && !bills.data ? <PageLoader /> : <BillsTable bills={all} onChanged={bills.refresh} />}
           </div>
         </div>
       </div>

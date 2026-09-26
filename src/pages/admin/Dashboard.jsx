@@ -1,99 +1,92 @@
-import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import OrdersTable from '../../components/OrdersTable'
-import { SalesBarChart, ForecastLineChart } from '../../components/Charts'
-import {
-  getOrders,
-  updateOrderStatus,
-  getMonthlySales,
-  getForecast,
-  isSupabaseConfigured,
-} from '../../lib/data'
+import StaffCallsPanel from '../../components/admin/StaffCallsPanel'
+import OpenBillsBoard from '../../components/admin/OpenBillsBoard'
+import StatCard from '../../components/admin/StatCard'
+import { useAdminLive } from '../../components/admin/AdminLiveProvider'
+import { SalesBarChart, ForecastLineChart } from '../../components/charts/Charts'
+import PageHeader from '../../components/ui/PageHeader'
+import Button from '../../components/ui/Button'
+import Icon from '../../components/ui/Icon'
+import { useLiveQuery } from '../../hooks/useLiveQuery'
+import { api, isDemoMode, usingDefaultPassword } from '../../services/api'
+import { ORDER_STATUS } from '../../config/constants'
+import { baht, localDateKey } from '../../lib/format'
+
+function startOfToday() {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  return d.toISOString()
+}
 
 export default function Dashboard() {
-  const [orders, setOrders] = useState([])
-  const [sales, setSales] = useState([])
-  const [forecast, setForecast] = useState([])
+  const { openBills, calls } = useAdminLive()
+  const today = useLiveQuery(() => api.listClosedBills({ from: startOfToday() }), { live: true, interval: 60000 })
+  const costs = useLiveQuery(api.getCosts)
+  const forecast = useLiveQuery(api.getForecast)
 
-  useEffect(() => {
-    getOrders().then(setOrders)
-    getMonthlySales().then(setSales)
-    getForecast().then(setForecast)
-  }, [])
-
-  const handleStatus = async (id, status) => {
-    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)))
-    await updateOrderStatus(id, status)
-  }
-
-  const paidToday = orders
-    .filter((o) => o.status === 'ชำระแล้ว')
-    .reduce((s, o) => s + o.total, 0)
+  const todayKey = localDateKey(new Date())
+  const paidTodayBills = (today.data || []).filter((b) => b.status === 'paid' && localDateKey(b.paid_at) === todayKey)
+  const paidToday = paidTodayBills.reduce((s, b) => s + Number(b.total), 0)
+  const waitingRounds = openBills.flatMap((b) => b.orders).filter((o) => o.status === ORDER_STATUS[0] || o.status === ORDER_STATUS[1]).length
+  const openTotal = openBills.reduce((s, b) => s + Number(b.total), 0)
 
   return (
-    <div className="bg-sky-gradient min-h-screen px-4 py-8">
-      <div className="mx-auto max-w-7xl">
-        {!isSupabaseConfigured && (
-          <div className="mb-4 rounded-2xl bg-brand-yellow/70 px-4 py-2 text-sm font-semibold">
-            🧪 โหมดตัวอย่าง (ยังไม่ได้เชื่อม Supabase) — ข้อมูลถูกเก็บชั่วคราวในเบราว์เซอร์
+    <div className="page">
+      <div className="container-app">
+        <PageHeader
+          title="แดชบอร์ด"
+          subtitle="อัปเดตอัตโนมัติ — มีเสียงเตือนเมื่อมีออเดอร์ใหม่หรือโต๊ะเรียก"
+          actions={
+            <Button href="/kitchen.html" target="_blank" rel="noopener" variant="secondary" size="sm" icon="chef" iconRight="external">
+              เปิดจอครัว
+            </Button>
+          }
+        />
+
+        {(isDemoMode || usingDefaultPassword) && (
+          <div className="mb-5 space-y-2">
+            {isDemoMode && (
+              <div className="callout callout-warning">
+                <Icon name="info" size={18} className="mt-0.5" />
+                <span>
+                  <b>โหมดทดลอง</b> — ข้อมูลอยู่ในเบราว์เซอร์นี้เท่านั้น ลูกค้าที่สั่งจากมือถือเครื่องอื่นจะไม่ขึ้นในหน้านี้ (ดูวิธีเชื่อม Supabase ใน README)
+                </span>
+              </div>
+            )}
+            {usingDefaultPassword && (
+              <div className="callout callout-danger">
+                <Icon name="lock" size={18} className="mt-0.5" />
+                <span>ยังใช้รหัสผ่านเริ่มต้นอยู่ — ตั้งค่า VITE_ADMIN_PASSWORD_HASH ในไฟล์ .env ก่อนใช้งานจริง</span>
+              </div>
+            )}
           </div>
         )}
 
-        {/* การ์ดสรุปด้านบน */}
-        <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-          {[
-            { t: 'ออเดอร์ทั้งหมด', v: orders.length, s: 'รายการ', icon: '🧾' },
-            {
-              t: 'ยังไม่ชำระ',
-              v: orders.filter((o) => o.status === 'ยังไม่ชำระ').length,
-              s: 'ออเดอร์',
-              icon: '⏳',
-            },
-            {
-              t: 'ชำระแล้ว',
-              v: orders.filter((o) => o.status === 'ชำระแล้ว').length,
-              s: 'ออเดอร์',
-              icon: '✅',
-            },
-            { t: 'ยอดรับวันนี้', v: `${paidToday}฿`, s: 'บาท', icon: '💰' },
-          ].map((c, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.06 }}
-              className="card flex items-center gap-3 p-4"
-            >
-              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-sky text-2xl">
-                {c.icon}
-              </span>
-              <div>
-                <div className="text-sm text-black/50">{c.t}</div>
-                <div className="font-display text-2xl">{c.v}</div>
-              </div>
-            </motion.div>
-          ))}
+        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+          <StatCard icon="bellRing" label="เรียกพนักงาน" value={calls.length} alert={calls.length > 0} />
+          <StatCard icon="receipt" label="ยังไม่ชำระ" value={`${openBills.length} โต๊ะ`} sub={`รวม ${baht(openTotal)}`} />
+          <StatCard icon="cooking" label="รอครัว" value={`${waitingRounds} รอบ`} />
+          <StatCard icon="cash" label="รับชำระวันนี้" value={baht(paidToday)} sub={`${paidTodayBills.length} บิล`} />
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.5fr_1fr]">
-          {/* ซ้าย: ออเดอร์ล่าสุด */}
-          <div>
-            <h2 className="mb-3 font-display text-3xl">ออเดอร์ล่าสุด</h2>
-            <OrdersTable orders={orders} onStatusChange={handleStatus} />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_1fr]">
+          {/* มือถือ: เรียกพนักงานขึ้นก่อน (เรื่องด่วนที่สุด) */}
+          <div className="order-2 lg:order-1">
+            <h2 className="section-title mb-3">บิลที่ยังไม่ชำระ</h2>
+            <OpenBillsBoard />
           </div>
 
-          {/* ขวา: กราฟ */}
-          <div className="space-y-6">
-            <div>
-              <h2 className="mb-3 font-display text-3xl">ยอดขาย</h2>
+          <div className="order-1 space-y-6 lg:order-2">
+            <StaffCallsPanel />
+            <div className="hidden lg:block">
+              <h2 className="section-title mb-3">ต้นทุน (ตัวอย่าง)</h2>
               <div className="card p-4">
-                <SalesBarChart data={sales} />
+                <SalesBarChart data={costs.data || []} />
               </div>
             </div>
-            <div>
-              <h2 className="mb-3 font-display text-3xl">สถิติคาดการณ์</h2>
+            <div className="hidden lg:block">
+              <h2 className="section-title mb-3">สถิติคาดการณ์ (ตัวอย่าง)</h2>
               <div className="card p-4">
-                <ForecastLineChart data={forecast} />
+                <ForecastLineChart data={forecast.data || []} />
               </div>
             </div>
           </div>
