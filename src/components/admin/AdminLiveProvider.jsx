@@ -81,6 +81,28 @@ export function AdminLiveProvider({ children }) {
     seenOrders.current = new Set(all.map((o) => o.id))
   }, [bills.data, isAdmin, toast])
 
+  // แจ้งเตือนเมื่อลูกค้าส่งคำขอยกเลิกรอบ (ต้องให้พนักงานอนุมัติในคิวออเดอร์)
+  const seenCancels = useRef(null)
+  useEffect(() => {
+    if (!isAdmin) {
+      seenCancels.current = null
+      return
+    }
+    if (!bills.data) return
+    const pending = bills.data.flatMap((b) =>
+      b.orders.filter((o) => o.cancel_request === 'pending').map((o) => ({ ...o, table_label: b.table_label })),
+    )
+    const prev = seenCancels.current
+    if (prev) {
+      const fresh = pending.filter((o) => !prev.has(o.id))
+      if (fresh.length) {
+        playChime('call')
+        fresh.forEach((o) => toast(`${o.table_label} ขอยกเลิกรอบที่ ${o.round} — กดอนุมัติในคิวออเดอร์`, { type: 'error', duration: 8000 }))
+      }
+    }
+    seenCancels.current = new Set(pending.map((o) => o.id))
+  }, [bills.data, isAdmin, toast])
+
   const value = useMemo(
     () => ({
       calls: calls.data || [],

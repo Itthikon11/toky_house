@@ -58,14 +58,15 @@ export default function Home() {
           <section className="py-12">
             <div className="mx-auto max-w-7xl px-4">
               <h2 className="font-display text-3xl md:text-4xl">สั่งง่าย ๆ 3 ขั้นตอน</h2>
-              <ol className="mt-5 grid gap-3 md:grid-cols-3">
+              {/* 3 คอลัมน์ตั้งแต่จอ 1024px — แท็บเล็ตแนวตั้งเรียงเป็นแถว หัวข้อจะได้อยู่บรรทัดเดียว */}
+              <ol className="mt-5 grid gap-3 lg:grid-cols-3">
                 {STEPS.map((s, i) => (
                   <li key={s.t} className="card-flat flex items-center gap-4 p-4">
                     <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-brand-ink font-display text-xl text-white">
                       {i + 1}
                     </span>
                     <div>
-                      <div className="flex items-center gap-1.5 font-bold">
+                      <div className="flex items-center gap-1.5 whitespace-nowrap font-bold">
                         <Icon name={s.icon} size={18} /> {s.t}
                       </div>
                       <div className="text-sm text-subtle">{s.s}</div>

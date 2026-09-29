@@ -24,7 +24,7 @@ async function fetchAll(buildQuery, pageSize = 1000) {
   }
 }
 
-const BILL_WITH_ORDERS = '*, orders(id, bill_id, round, items, total, note, status, created_at)'
+const BILL_WITH_ORDERS = '*, orders(id, bill_id, round, items, total, note, status, cancel_request, created_at)'
 
 function sortOrders(bill) {
   return { ...bill, orders: (bill.orders || []).slice().sort((a, b) => a.round - b.round) }
@@ -106,6 +106,13 @@ export async function callStaff({ token, reason }) {
   return unwrap(await supabase.rpc('call_staff', { p_token: token, p_reason: reason }))
 }
 
+// ลูกค้าขอยกเลิกรอบที่ร้านยังไม่เริ่มทำ (พนักงานต้องอนุมัติ)
+export async function requestCancelOrder({ token, orderId, billId }) {
+  return unwrap(
+    await supabase.rpc('request_cancel_order', { p_token: token, p_order_id: orderId, p_bill_id: billId || null }),
+  )
+}
+
 // ---------- พนักงาน ----------
 export async function saveMenu(items) {
   unwrap(await supabase.from('menu_items').upsert(items, { onConflict: 'id' }))
@@ -176,6 +183,22 @@ export async function cancelBill(id) {
   return true
 }
 
+// คำขอยกเลิกจากลูกค้า: อนุมัติ = ยกเลิกรอบนั้น · ไม่อนุมัติ = ทำต่อตามปกติ (ขอซ้ำไม่ได้)
+export async function approveCancel(orderId) {
+  unwrap(await supabase.from('orders').update({ status: 'ยกเลิก', cancel_request: 'approved' }).eq('id', orderId))
+  return true
+}
+
+export async function rejectCancel(orderId) {
+  unwrap(await supabase.from('orders').update({ cancel_request: 'rejected' }).eq('id', orderId))
+  return true
+}
+
+// ลดจำนวน (qty) หรือลบทั้งรายการ (qty = null) ของเมนูในรอบ — เช่น ลูกค้าไม่ได้รับของ
+export async function removeOrderItem(orderId, line, qty = null) {
+  return unwrap(await supabase.rpc('remove_order_item', { p_order_id: orderId, p_line: line, p_qty: qty }))
+}
+
 export async function updateOrderStatus(orderId, status) {
   unwrap(await supabase.from('orders').update({ status }).eq('id', orderId))
   return true
@@ -187,7 +210,7 @@ export async function listKitchenOrders() {
   const rows = unwrap(
     await supabase
       .from('orders')
-      .select('id, bill_id, round, items, total, note, status, created_at, bills(table_label, is_takeaway)')
+      .select('id, bill_id, round, items, total, note, status, cancel_request, created_at, bills(table_label, is_takeaway)')
       .or(`status.in.("รับออเดอร์","กำลังทำ"),and(status.eq."เสิร์ฟแล้ว",created_at.gte."${since}")`)
       .order('created_at', { ascending: true })
       .limit(500),

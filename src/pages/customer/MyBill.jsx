@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useTableSession } from '../../context/TableSessionContext'
 import { useLiveQuery } from '../../hooks/useLiveQuery'
 import { useCallStaff } from '../../components/customer/CallStaffProvider'
@@ -6,17 +7,22 @@ import PageHeader from '../../components/ui/PageHeader'
 import EmptyState from '../../components/ui/EmptyState'
 import Button from '../../components/ui/Button'
 import Icon from '../../components/ui/Icon'
+import Modal from '../../components/ui/Modal'
+import { useToast } from '../../components/ui/Toast'
 import { StatusBadge } from '../../components/ui/Badge'
 import { PageLoader } from '../../components/ui/Spinner'
 import { api } from '../../services/api'
 import { toThaiMessage } from '../../services/errors'
-import { BILL_STATUS, ORDER_STATUS_CANCELLED, POLL_MS } from '../../config/constants'
+import { BILL_STATUS, ORDER_STATUS, ORDER_STATUS_CANCELLED, POLL_MS } from '../../config/constants'
 import { baht, mergeBillItems, timeOf } from '../../lib/format'
 
 // บิลของโต๊ะ: ทุกรอบที่สั่งรวมเป็นบิลเดียว + สถานะจากครัว (อัปเดตอัตโนมัติ)
 export default function MyBill() {
   const { session } = useTableSession()
   const { call, sending, secondsLeft } = useCallStaff()
+  const { toast } = useToast()
+  const [cancelTarget, setCancelTarget] = useState(null) // รอบที่กำลังจะขอยกเลิก
+  const [requesting, setRequesting] = useState(false)
   const { data, error, loading, refresh } = useLiveQuery(
     () => api.getTableBill({ token: session.token, billId: session.billId }),
     { enabled: !!session, interval: POLL_MS.CUSTOMER, deps: [session?.token, session?.billId] },
@@ -34,6 +40,21 @@ export default function MyBill() {
   }
 
   const bill = data?.bill
+
+  const requestCancel = async () => {
+    setRequesting(true)
+    try {
+      await api.requestCancelOrder({ token: session.token, orderId: cancelTarget.id, billId: session.billId })
+      toast(`ส่งคำขอยกเลิกรอบที่ ${cancelTarget.round} แล้ว — รอพนักงานยืนยัน`, { type: 'success', duration: 4000 })
+      await refresh()
+    } catch (e) {
+      toast(toThaiMessage(e), { type: 'error', duration: 5000 })
+      refresh()
+    } finally {
+      setRequesting(false)
+      setCancelTarget(null)
+    }
+  }
   const merged = bill ? mergeBillItems(bill.orders) : []
   const isOpen = bill?.status === BILL_STATUS.OPEN
   const payWait = secondsLeft('bill')
@@ -93,8 +114,8 @@ export default function MyBill() {
                   <Button block size="lg" variant="dark" icon={payWait ? 'check' : 'receipt'} loading={sending === 'bill'} disabled={payWait > 0} onClick={() => call('bill')}>
                     {payWait ? `แจ้งพนักงานแล้ว · รอสักครู่ (${payWait}s)` : 'ขอชำระเงิน / เช็คบิล'}
                   </Button>
-                  <p className="text-center text-xs text-subtle">
-                    ร้านไม่มีการชำระออนไลน์ — พนักงานจะมาคิดเงินที่โต๊ะ (เงินสด / โอน)
+                  <p className="whitespace-nowrap text-center text-[0.6875rem] text-subtle sm:text-xs">
+                    ชำระกับพนักงานที่โต๊ะเท่านั้น · เงินสด / โอน
                   </p>
                 </div>
               )}
@@ -129,6 +150,22 @@ export default function MyBill() {
                       <Icon name="note" size={16} className="mt-0.5" /> {o.note}
                     </p>
                   )}
+                  {/* ขอยกเลิกได้เฉพาะรอบที่ร้านยังไม่เริ่มทำ — ยกเลิกจริงเมื่อพนักงานอนุมัติ */}
+                  {o.status !== ORDER_STATUS_CANCELLED && o.cancel_request === 'pending' && (
+                    <p className="mt-3 flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+                      <Icon name="clock" size={16} /> ส่งคำขอยกเลิกแล้ว · รอพนักงานยืนยัน
+                    </p>
+                  )}
+                  {o.cancel_request === 'rejected' && (
+                    <p className="mt-3 flex items-center gap-1.5 text-sm text-subtle">
+                      <Icon name="info" size={16} /> ร้านไม่อนุมัติการยกเลิกรอบนี้
+                    </p>
+                  )}
+                  {isOpen && o.status === ORDER_STATUS[0] && !o.cancel_request && (
+                    <Button variant="ghost" size="sm" icon="ban" className="mt-2 text-red-600" onClick={() => setCancelTarget(o)}>
+                      ขอยกเลิกรอบนี้
+                    </Button>
+                  )}
                 </li>
               ))}
             </ol>
@@ -141,6 +178,36 @@ export default function MyBill() {
           </>
         )}
       </div>
+
+      <Modal
+        open={!!cancelTarget}
+        onClose={() => !requesting && setCancelTarget(null)}
+        title={cancelTarget ? `ขอยกเลิกรอบที่ ${cancelTarget.round}?` : ''}
+        subtitle="พนักงานจะเป็นคนยืนยันการยกเลิก — ถ้าร้านเริ่มทำไปแล้วอาจยกเลิกไม่ได้"
+        footer={
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="secondary" size="lg" disabled={requesting} onClick={() => setCancelTarget(null)}>
+              ไม่ยกเลิก
+            </Button>
+            <Button variant="danger" size="lg" loading={requesting} onClick={requestCancel}>
+              ส่งคำขอ
+            </Button>
+          </div>
+        }
+      >
+        {cancelTarget && (
+          <ul className="space-y-1 text-sm">
+            {cancelTarget.items.map((it, i) => (
+              <li key={i} className="flex justify-between gap-3">
+                <span>
+                  {it.qty}× {it.name}
+                </span>
+                <span className="tabular-nums">{baht(it.price * it.qty)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
     </div>
   )
 }

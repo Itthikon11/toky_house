@@ -46,10 +46,11 @@ export default function OrderQueue({ kitchen }) {
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
     .slice(0, 4)
 
-  const setStatus = async (order, status, message) => {
+  // ทำงานกับรอบนั้น (กันกดซ้ำระหว่างรอเซิร์ฟเวอร์) แล้วรีเฟรชคิว + ข้อมูลสด
+  const run = async (order, action, message) => {
     setBusy((s) => new Set(s).add(order.id))
     try {
-      await api.updateOrderStatus(order.id, status)
+      await action()
       await refresh()
       refreshLive()
       if (message) toast(message, { type: 'success', duration: 2000 })
@@ -63,6 +64,7 @@ export default function OrderQueue({ kitchen }) {
       })
     }
   }
+  const setStatus = (order, status, message) => run(order, () => api.updateOrderStatus(order.id, status), message)
 
   return (
     <section aria-label="คิวออเดอร์">
@@ -82,7 +84,8 @@ export default function OrderQueue({ kitchen }) {
       ) : !queue.length ? (
         <EmptyState icon="check" title="ไม่มีออเดอร์ค้าง" description="ออเดอร์ใหม่จะเด้งขึ้นที่นี่ทันที พร้อมเสียงเตือน" />
       ) : (
-        <ol className="space-y-3">
+        // คิวยาว → เลื่อนในกรอบของตัวเอง (หน้าแดชบอร์ดไม่ยืดยาวจนหาส่วนอื่นไม่เจอ)
+        <ol className="nice-scroll -mx-1 max-h-[75vh] space-y-3 overflow-y-auto overscroll-contain px-1 py-1">
           <AnimatePresence initial={false}>
             {queue.map((o, i) => {
               const mins = minutesSince(o.created_at)
@@ -95,7 +98,9 @@ export default function OrderQueue({ kitchen }) {
                   initial={{ opacity: 0, y: -12 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, x: 60 }}
-                  className={`card overflow-hidden ${late ? 'ring-4 ring-red-400/70' : i === 0 ? 'ring-2 ring-brand-yellowDark' : ''}`}
+                  className={`card overflow-hidden ${
+                    o.cancel_request === 'pending' || late ? 'ring-4 ring-red-400/70' : i === 0 ? 'ring-2 ring-brand-yellowDark' : ''
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-3 border-b border-black/5 px-4 pb-3 pt-4">
                     <div className="min-w-0">
@@ -131,6 +136,32 @@ export default function OrderQueue({ kitchen }) {
                     </div>
                   )}
 
+                  {o.cancel_request === 'pending' && (
+                    <div className="mx-4 mt-3 rounded-2xl bg-red-50 p-3 ring-1 ring-red-200" role="alert">
+                      <p className="flex items-center gap-2 font-bold text-red-700">
+                        <Icon name="ban" size={18} /> ลูกค้าขอยกเลิกรอบนี้
+                      </p>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={isBusy}
+                          onClick={() => run(o, () => api.rejectCancel(o.id), `ไม่อนุมัติการยกเลิก ${o.table_label} รอบ ${o.round}`)}
+                        >
+                          ไม่อนุมัติ
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          loading={isBusy}
+                          onClick={() => run(o, () => api.approveCancel(o.id), `ยกเลิก ${o.table_label} รอบ ${o.round} แล้ว`)}
+                        >
+                          อนุมัติยกเลิก
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex gap-2 p-4 pt-3">
                     {o.status === NEW && (
                       <Button variant="secondary" icon="flame" disabled={isBusy} onClick={() => setStatus(o, COOKING)}>
@@ -140,7 +171,6 @@ export default function OrderQueue({ kitchen }) {
                     <Button
                       variant="success"
                       size="lg"
-                      icon="check"
                       className="flex-1"
                       loading={isBusy}
                       onClick={() => setStatus(o, SERVED, `เสิร์ฟ ${o.table_label} รอบ ${o.round} แล้ว`)}

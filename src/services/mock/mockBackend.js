@@ -399,6 +399,71 @@ export const cancelBill = (id) =>
     }),
   )
 
+// ลูกค้าขอยกเลิกรอบที่ร้านยังไม่เริ่มทำ (เหมือน request_cancel_order ใน schema.sql)
+export async function requestCancelOrder({ token, orderId, billId }) {
+  const db = load()
+  const table = tableByToken(db, token)
+  if (!table) return reject('INVALID_TABLE')
+  const order = db.orders.find((o) => o.id === orderId)
+  const bill = order && db.bills.find((b) => b.id === order.bill_id)
+  if (!bill || bill.table_id !== table.id || bill.status !== BILL_STATUS.OPEN || (table.is_takeaway && bill.id !== billId)) {
+    return reject('ORDER_NOT_FOUND')
+  }
+  if (order.status !== ORDER_STATUS[0]) return reject('CANCEL_TOO_LATE')
+  if (order.cancel_request === 'rejected') return reject('CANCEL_REJECTED')
+  if (!order.cancel_request) {
+    order.cancel_request = 'pending'
+    commit(db)
+  }
+  return respond({ status: 'pending' })
+}
+
+export const approveCancel = (orderId) =>
+  staffOnly(() =>
+    mutate((db) => {
+      const order = db.orders.find((o) => o.id === orderId)
+      const bill = order && db.bills.find((b) => b.id === order.bill_id)
+      if (!order) throw new AppError('ORDER_NOT_FOUND')
+      if (bill?.status !== BILL_STATUS.OPEN) throw new AppError('BILL_NOT_OPEN')
+      Object.assign(order, { status: ORDER_STATUS_CANCELLED, cancel_request: 'approved' })
+      recalcBill(db, order.bill_id)
+      return true
+    }),
+  )
+
+export const rejectCancel = (orderId) =>
+  staffOnly(() =>
+    mutate((db) => {
+      const order = db.orders.find((o) => o.id === orderId)
+      if (!order) throw new AppError('ORDER_NOT_FOUND')
+      order.cancel_request = 'rejected'
+      return true
+    }),
+  )
+
+// ลดจำนวน / ลบเมนูออกจากรอบ (เหมือน remove_order_item ใน schema.sql)
+export const removeOrderItem = (orderId, line, qty = null) =>
+  staffOnly(() =>
+    mutate((db) => {
+      const order = db.orders.find((o) => o.id === orderId)
+      if (!order || order.status === ORDER_STATUS_CANCELLED || !order.items[line]) throw new AppError('ORDER_NOT_FOUND')
+      const bill = db.bills.find((b) => b.id === order.bill_id)
+      if (bill?.status !== BILL_STATUS.OPEN) throw new AppError('BILL_NOT_OPEN')
+      if (qty !== null && !(qty >= 1)) throw new AppError('INVALID_QTY')
+      const have = order.items[line].qty
+      const left = have - (qty ?? have)
+      const items = left > 0 ? order.items.map((it, i) => (i === line ? { ...it, qty: left } : it)) : order.items.filter((_, i) => i !== line)
+      if (!items.length) {
+        order.status = ORDER_STATUS_CANCELLED
+      } else {
+        order.items = items
+        order.total = items.reduce((s, it) => s + it.price * it.qty, 0)
+      }
+      recalcBill(db, order.bill_id)
+      return { items_left: items.length, order_total: items.length ? order.total : 0 }
+    }),
+  )
+
 export const updateOrderStatus = (orderId, status) =>
   staffOnly(() =>
     mutate((db) => {

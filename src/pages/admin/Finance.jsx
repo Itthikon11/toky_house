@@ -194,7 +194,7 @@ export default function Finance() {
                     }
                   />
                 ) : (
-                  <div className="space-y-4">
+                  <div className="nice-scroll -mx-1 max-h-[65vh] space-y-4 overflow-y-auto overscroll-contain px-1">
                     {byDay.map(([day, items]) => (
                       <div key={day}>
                         <div className="mb-1.5 flex items-baseline justify-between px-1 text-sm">

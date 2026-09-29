@@ -22,6 +22,7 @@ export default function BillDetailModal({ bill, onClose, onChanged }) {
   const [method, setMethod] = useState('cash')
   const [busy, setBusy] = useState(null)
   const [confirmCancel, setConfirmCancel] = useState(false)
+  const [confirmItem, setConfirmItem] = useState(null) // `${orderId}:${line}` ที่กำลังจะลบทั้งรายการ
 
   if (!bill) return null
 
@@ -117,17 +118,77 @@ export default function BillDetailModal({ bill, onClose, onChanged }) {
                 รอบที่ {o.round}
                 <span className="ml-2 text-sm font-normal text-subtle">{timeOf(o.created_at)}</span>
               </span>
-              <StatusBadge status={o.status} />
+              <span className="flex flex-wrap items-center justify-end gap-1.5">
+                {o.cancel_request === 'pending' && o.status !== ORDER_STATUS_CANCELLED && (
+                  <span className="badge badge-danger">
+                    <Icon name="ban" size={12} /> ลูกค้าขอยกเลิก
+                  </span>
+                )}
+                <StatusBadge status={o.status} />
+              </span>
             </div>
             <ul className={`mt-2 space-y-1 text-sm ${o.status === ORDER_STATUS_CANCELLED ? 'line-through opacity-60' : ''}`}>
-              {o.items.map((it, i) => (
-                <li key={i} className="flex justify-between gap-3">
-                  <span>
-                    <b className="tabular-nums">{it.qty}×</b> {it.name}
-                  </span>
-                  <span className="tabular-nums">{baht(it.price * it.qty)}</span>
-                </li>
-              ))}
+              {o.items.map((it, i) => {
+                // ลด/ลบเมนูได้เฉพาะบิลที่ยังไม่ชำระ และรอบที่ไม่ได้ถูกยกเลิก (เช่น ลูกค้าไม่ได้รับของ)
+                const editable = isOpen && o.status !== ORDER_STATUS_CANCELLED
+                const key = `${o.id}:${i}`
+                const busyKey = `item-${key}`
+                if (confirmItem === key) {
+                  return (
+                    <li key={i} className="flex flex-wrap items-center gap-2 rounded-xl bg-red-50 px-2 py-1.5">
+                      <span className="min-w-0 flex-1 font-semibold text-red-700">
+                        ลบ {it.qty}× {it.name} ออกจากบิล?
+                      </span>
+                      <Button size="sm" variant="secondary" disabled={!!busy} onClick={() => setConfirmItem(null)}>
+                        ไม่ลบ
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        loading={busy === busyKey}
+                        onClick={async () => {
+                          await run(busyKey, () => api.removeOrderItem(o.id, i), `ลบ ${it.name} ออกจากบิลแล้ว`)
+                          setConfirmItem(null)
+                        }}
+                      >
+                        ลบ
+                      </Button>
+                    </li>
+                  )
+                }
+                return (
+                  <li key={i} className="flex items-center justify-between gap-3">
+                    <span className="min-w-0">
+                      <b className="tabular-nums">{it.qty}×</b> {it.name}
+                    </span>
+                    <span className="flex shrink-0 items-center gap-1">
+                      <span className="tabular-nums">{baht(it.price * it.qty)}</span>
+                      {editable && it.qty > 1 && (
+                        <button
+                          type="button"
+                          disabled={!!busy}
+                          onClick={() => run(busyKey, () => api.removeOrderItem(o.id, i, 1), `ลด ${it.name} เหลือ ${it.qty - 1}`)}
+                          aria-label={`ลด ${it.name} 1 ชิ้น`}
+                          className="ml-1 grid h-8 min-w-[2rem] place-items-center rounded-full bg-white px-2 text-xs font-bold ring-1 ring-black/10 transition hover:bg-gray-100 disabled:opacity-50"
+                        >
+                          −1
+                        </button>
+                      )}
+                      {editable && (
+                        <button
+                          type="button"
+                          disabled={!!busy}
+                          onClick={() => setConfirmItem(key)}
+                          aria-label={`ลบ ${it.name} ทั้งรายการ`}
+                          className="grid h-8 w-8 place-items-center rounded-full text-gray-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                        >
+                          <Icon name="trash" size={16} />
+                        </button>
+                      )}
+                    </span>
+                  </li>
+                )
+              })}
             </ul>
             {o.note && (
               <p className="mt-2 flex items-start gap-1.5 rounded-xl bg-white px-3 py-2 text-sm">

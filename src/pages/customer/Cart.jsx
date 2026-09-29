@@ -10,6 +10,7 @@ import EmptyState from '../../components/ui/EmptyState'
 import QtyStepper from '../../components/ui/QtyStepper'
 import Button from '../../components/ui/Button'
 import Icon from '../../components/ui/Icon'
+import Modal from '../../components/ui/Modal'
 import { api } from '../../services/api'
 import { toThaiMessage } from '../../services/errors'
 import { randomToken } from '../../lib/security'
@@ -23,6 +24,7 @@ export default function Cart() {
   const [note, setNote] = useState('')
   const [placing, setPlacing] = useState(false)
   const [placed, setPlaced] = useState(null)
+  const [confirming, setConfirming] = useState(false) // เด้งสรุปให้ตรวจก่อนส่งออเดอร์จริง
   // key เดียวต่อการกดยืนยัน 1 ครั้ง → กดซ้ำ/เน็ตหลุดแล้วส่งใหม่ จะไม่เกิดออเดอร์ซ้ำ
   const clientKey = useRef(randomToken(16))
 
@@ -46,6 +48,7 @@ export default function Cart() {
       toast(toThaiMessage(e), { type: 'error', duration: 5000 })
     } finally {
       setPlacing(false)
+      setConfirming(false)
     }
   }
 
@@ -132,8 +135,8 @@ export default function Cart() {
 
               {session ? (
                 <>
-                  <Button block size="lg" loading={placing} onClick={handlePlace} icon="check">
-                    {placing ? 'กำลังส่งออเดอร์…' : `ยืนยันสั่ง ${baht(cartTotal)}`}
+                  <Button block size="lg" onClick={() => setConfirming(true)}>
+                    ยืนยันสั่ง
                   </Button>
                   <div className="callout callout-info">
                     <Icon name="info" size={18} className="mt-0.5" />
@@ -149,6 +152,45 @@ export default function Cart() {
           </div>
         )}
       </div>
+
+      {session && (
+        <Modal
+          open={confirming}
+          onClose={() => !placing && setConfirming(false)}
+          title="ยืนยันการสั่ง?"
+          subtitle={`${session.label} · ${cartCount} ชิ้น`}
+          footer={
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="secondary" size="lg" disabled={placing} onClick={() => setConfirming(false)}>
+                แก้ไข
+              </Button>
+              <Button size="lg" loading={placing} onClick={handlePlace}>
+                {placing ? 'กำลังส่ง…' : 'สั่งเลย'}
+              </Button>
+            </div>
+          }
+        >
+          <ul className="divide-y divide-black/5">
+            {cart.map((c) => (
+              <li key={c.id} className="flex items-baseline gap-3 py-2">
+                <span className="font-num w-8 shrink-0 text-brand-yellowDark">{c.qty}×</span>
+                <span className="min-w-0 flex-1 font-semibold">{c.name}</span>
+                <span className="font-num">{baht(c.price * c.qty)}</span>
+              </li>
+            ))}
+          </ul>
+          {note.trim() && (
+            <p className="mt-2 flex items-start gap-1.5 rounded-xl bg-gray-50 px-3 py-2 text-sm">
+              <Icon name="note" size={16} className="mt-0.5 shrink-0 text-amber-600" /> {note.trim()}
+            </p>
+          )}
+          <div className="mt-3 flex items-baseline justify-between border-t border-black/5 pt-3">
+            <span className="font-semibold">รวมรอบนี้</span>
+            <span className="font-num text-3xl">{baht(cartTotal)}</span>
+          </div>
+          <p className="mt-2 text-sm text-subtle">ยังไม่ต้องจ่ายตอนนี้ — ชำระกับพนักงานเมื่ออิ่มแล้ว</p>
+        </Modal>
+      )}
     </div>
   )
 }
