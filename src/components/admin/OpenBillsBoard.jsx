@@ -46,12 +46,12 @@ export default function OpenBillsBoard() {
             >
               <div className="flex w-full items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="font-display text-2xl leading-tight">{b.table_label}</div>
+                  <div className="font-num text-2xl leading-tight">{b.table_label}</div>
                   <div className="mt-0.5 flex items-center gap-1 text-xs text-subtle">
                     <Icon name="clock" size={12} /> {b.orders.length} รอบ · อัปเดต {timeAgo(b.updated_at)}
                   </div>
                 </div>
-                <div className="font-display text-2xl">{baht(b.total)}</div>
+                <div className="font-num text-2xl">{baht(b.total)}</div>
               </div>
               <p className="mt-2 w-full truncate text-sm text-muted">{summarizeItems(mergeBillItems(b.orders))}</p>
               <div className="mt-3 flex w-full flex-wrap items-center gap-1.5">

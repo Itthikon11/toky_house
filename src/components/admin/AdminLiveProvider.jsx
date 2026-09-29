@@ -23,6 +23,11 @@ export function AdminLiveProvider({ children }) {
 
   useEffect(() => unlockAudio(), [])
 
+  // ล้างข้อมูลยอดขาย/การเงินเมื่อครบรอบ 65 วัน (ตัวสำรองของ pg_cron — ถ้ายังไม่ครบรอบจะไม่ทำอะไร)
+  useEffect(() => {
+    if (isAdmin) api.getRetention().catch(() => {})
+  }, [isAdmin])
+
   // แจ้งเตือนการเรียกพนักงานใหม่ / เรียกซ้ำ
   const seenCalls = useRef(null)
   useEffect(() => {

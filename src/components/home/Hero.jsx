@@ -23,7 +23,7 @@ export default function Hero() {
         className="pointer-events-none absolute inset-y-0 right-0 hidden h-full w-auto max-w-none select-none object-cover object-left lg:block"
       />
 
-      <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 px-4 py-12 lg:grid-cols-2 lg:py-20">
+      <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 px-4 py-12 md:grid-cols-2 md:gap-4 lg:gap-8 lg:py-20">
         {/* ซ้าย: ข้อความ */}
         <motion.div
           className="min-w-0"
@@ -31,16 +31,16 @@ export default function Hero() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <h1 className="font-display text-5xl leading-[0.95] sm:text-6xl lg:text-8xl">
+          <h1 className="font-display text-5xl leading-[0.95] sm:text-6xl md:text-5xl lg:text-8xl">
             SWEET & <span className="text-brand-yellow">CRISPY</span>
           </h1>
-          <h2 className="mt-2 font-display text-3xl md:text-5xl">
+          <h2 className="mt-2 font-display text-3xl lg:text-5xl">
             <span className="text-brand-yellow">OUR FAVORITE</span> TOKYO TREATS
           </h2>
-          <p className="mt-5 font-bold uppercase tracking-wide text-gray-700">
+          <p className="mt-5 font-bold uppercase tracking-wide text-gray-700 md:text-sm lg:text-base">
             Crispy outside, soft inside. Perfect for any time of the day!
           </p>
-          <p className="mt-2 text-lg font-semibold">
+          <p className="mt-2 text-lg font-semibold md:text-base lg:text-lg">
             รับจัดเบรก จัดบูธ งานแต่ง งานเลี้ยง
           </p>
 
@@ -59,15 +59,16 @@ export default function Hero() {
           </div>
         </motion.div>
 
-        {/* คอลัมน์ขวาเว้นไว้ให้รูป (เดสก์ท็อป) / มือถือแสดงรูปด้านล่าง */}
-        <div className="lg:hidden">
+        {/* คอลัมน์ขวา: เดสก์ท็อปเว้นไว้ให้รูปเต็มด้านขวา / แท็บเล็ตแนวตั้งครอปเฉพาะส่วนขนมมาไว้ข้างข้อความ / มือถือไม่แสดงรูป */}
+        <div className="relative -mr-4 hidden self-stretch md:block lg:hidden">
           <motion.img
             src={COMPOSITE}
             alt="ขนมโตเกียว TOKYO HOUSE"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="w-full select-none object-contain"
+            draggable={false}
+            initial={{ opacity: 0, scale: 1.03 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, ease: 'easeOut' }}
+            className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-right"
           />
         </div>
       </div>

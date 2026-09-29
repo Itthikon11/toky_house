@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import Icon from '../ui/Icon'
 import { cleanText } from '../../lib/security'
 
-// เลือกหมวดเมนูแบบกดชิป + เพิ่มหมวดใหม่ได้ในที่เดียว (แทน dropdown ของเบราว์เซอร์)
-// หมวดใหม่จะถูกบันทึกจริงเมื่อกด "บันทึก" เมนูนี้
-export default function CategoryPicker({ value, options, onChange, error }) {
+// เลือกหมวดแบบกดชิป + เพิ่มหมวดใหม่ได้ในที่เดียว (แทน dropdown ของเบราว์เซอร์)
+// หมวดใหม่จะถูกบันทึกจริงเมื่อกด "บันทึก" ของฟอร์ม (ใช้ทั้งหมวดเมนูและหมวดรายจ่าย)
+export default function CategoryPicker({ value, options, onChange, error, label = 'หมวดเมนู', placeholder = 'ชื่อหมวด เช่น ของทานเล่น' }) {
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState('')
   const inputRef = useRef(null)
@@ -33,7 +33,7 @@ export default function CategoryPicker({ value, options, onChange, error }) {
 
   return (
     <div>
-      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="หมวดเมนู" aria-invalid={!!error}>
+      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={label} aria-invalid={!!error}>
         {all.map((c) => {
           const active = value === c
           return (
@@ -70,7 +70,7 @@ export default function CategoryPicker({ value, options, onChange, error }) {
                   cancel()
                 }
               }}
-              placeholder="ชื่อหมวด เช่น ของทานเล่น"
+              placeholder={placeholder}
               aria-label="ชื่อหมวดใหม่"
               className="w-44 bg-transparent text-sm font-semibold outline-none placeholder:font-normal placeholder:text-gray-400"
             />

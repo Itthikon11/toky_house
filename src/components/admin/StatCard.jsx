@@ -9,7 +9,7 @@ export default function StatCard({ icon, label, value, sub, alert = false }) {
       </span>
       <div className="min-w-0">
         <div className="text-sm leading-tight text-subtle">{label}</div>
-        <div className="font-display text-2xl leading-tight">{value}</div>
+        <div className="font-num text-2xl leading-tight">{value}</div>
         {sub && <div className="truncate text-xs text-subtle">{sub}</div>}
       </div>
     </div>

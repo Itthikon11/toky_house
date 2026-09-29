@@ -99,7 +99,7 @@ export default function OrderQueue({ kitchen }) {
                 >
                   <div className="flex items-start justify-between gap-3 border-b border-black/5 px-4 pb-3 pt-4">
                     <div className="min-w-0">
-                      <div className="font-display text-3xl leading-none">{o.table_label}</div>
+                      <div className="font-num text-3xl leading-none">{o.table_label}</div>
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                         <span className={`badge ${o.round > 1 ? 'badge-brand' : 'badge-neutral'}`}>
                           {o.round > 1 ? `สั่งเพิ่ม · รอบ ${o.round}` : 'รอบแรก'}
@@ -119,7 +119,7 @@ export default function OrderQueue({ kitchen }) {
                   <ul className="divide-y divide-dashed divide-black/10 px-4">
                     {o.items.map((it, idx) => (
                       <li key={idx} className="flex items-baseline gap-3 py-2 text-lg">
-                        <span className="min-w-[2.5ch] font-display text-2xl text-brand-yellowDark">{it.qty}×</span>
+                        <span className="min-w-[2.5ch] font-num text-2xl text-brand-yellowDark">{it.qty}×</span>
                         <span className="font-semibold">{it.name}</span>
                       </li>
                     ))}

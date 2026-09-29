@@ -1,37 +1,24 @@
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import BillsTable from '../../components/admin/BillsTable'
-import { ForecastLineChart, RevenueBarChart, SalesBarChart } from '../../components/charts/Charts'
+import DateRangeFilter, { daysAgo, isoRange } from '../../components/admin/DateRangeFilter'
+import { RevenueBarChart } from '../../components/charts/Charts'
 import PageHeader from '../../components/ui/PageHeader'
 import Button from '../../components/ui/Button'
 import Icon from '../../components/ui/Icon'
 import { PageLoader } from '../../components/ui/Spinner'
 import { useLiveQuery } from '../../hooks/useLiveQuery'
 import { api } from '../../services/api'
-import { BILL_STATUS_LABEL, PAYMENT_METHOD_ICON, PAYMENT_METHODS } from '../../config/constants'
-import { baht, dateTimeOf, localDateKey, mergeBillItems } from '../../lib/format'
-import { csvCell } from '../../lib/security'
-
-function daysAgo(n) {
-  const d = new Date()
-  d.setDate(d.getDate() - n)
-  return localDateKey(d)
-}
+import { PAYMENT_METHOD_ICON, PAYMENT_METHODS } from '../../config/constants'
+import { baht, localDateKey } from '../../lib/format'
+import { downloadSalesCsv } from '../../lib/exports'
 
 export default function Sales() {
   const [from, setFrom] = useState(daysAgo(6))
   const [to, setTo] = useState(daysAgo(0))
 
-  const range = useMemo(
-    () => ({
-      from: from ? new Date(`${from}T00:00:00`).toISOString() : null,
-      to: to ? new Date(`${to}T23:59:59.999`).toISOString() : null,
-    }),
-    [from, to],
-  )
+  const range = useMemo(() => isoRange(from, to), [from, to])
   const bills = useLiveQuery(() => api.listClosedBills(range), { live: true, deps: [range.from, range.to] })
-  const costs = useLiveQuery(api.getCosts)
-  const forecast = useLiveQuery(api.getForecast)
 
   const all = bills.data || []
   const paid = all.filter((b) => b.status === 'paid')
@@ -59,35 +46,8 @@ export default function Sales() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bills.data, from, to])
 
-  const exportCSV = () => {
-    const header = ['วันเวลา', 'โต๊ะ', 'รายการ', 'จำนวนรอบ', 'ยอด', 'สถานะ', 'วิธีชำระ']
-    const lines = all.map((b) =>
-      [
-        dateTimeOf(b.paid_at || b.updated_at),
-        b.table_label,
-        mergeBillItems(b.orders).map((i) => `${i.qty}x ${i.name}`).join(' | '),
-        b.orders.length,
-        b.total,
-        BILL_STATUS_LABEL[b.status],
-        PAYMENT_METHODS[b.payment_method] || '',
-      ]
-        .map(csvCell)
-        .join(','),
-    )
-    const csv = '﻿' + [header.join(','), ...lines].join('\n')
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `tokyo-house-sales-${from}-to-${to}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
+  const exportCSV = () => downloadSalesCsv(all, from, to)
 
-  const presets = [
-    { label: 'วันนี้', from: daysAgo(0) },
-    { label: '7 วัน', from: daysAgo(6) },
-    { label: '30 วัน', from: daysAgo(29) },
-  ]
 
   return (
     <div className="page">
@@ -102,40 +62,20 @@ export default function Sales() {
           }
         />
 
-        {/* ช่วงวันที่ */}
-        <div className="card mb-5 flex flex-col gap-3 p-4 md:flex-row md:items-end">
-          <div className="flex gap-2">
-            {presets.map((p) => (
-              <button
-                key={p.label}
-                type="button"
-                onClick={() => {
-                  setFrom(p.from)
-                  setTo(daysAgo(0))
-                }}
-                className={`chip ${from === p.from && to === daysAgo(0) ? 'chip-active' : ''}`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-          <div className="grid flex-1 grid-cols-2 gap-2 md:max-w-md">
-            <label>
-              <span className="field-label">ตั้งแต่</span>
-              <input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} className="input" />
-            </label>
-            <label>
-              <span className="field-label">ถึง</span>
-              <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} className="input" />
-            </label>
-          </div>
-        </div>
+        <DateRangeFilter
+          from={from}
+          to={to}
+          onChange={(r) => {
+            setFrom(r.from)
+            setTo(r.to)
+          }}
+        />
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1.4fr]">
           <div className="space-y-4">
             <motion.section key={totalMoney} initial={{ scale: 0.98 }} animate={{ scale: 1 }} className="card p-5" aria-label="สรุปยอด">
               <div className="text-sm font-semibold text-subtle">รับชำระทั้งหมด</div>
-              <div className="font-display text-5xl">{baht(totalMoney)}</div>
+              <div className="font-num text-5xl">{baht(totalMoney)}</div>
               <div className="mt-4 grid grid-cols-3 gap-2 border-t border-black/5 pt-4 text-sm">
                 <div>
                   <div className="text-subtle">จำนวนบิล</div>
@@ -156,16 +96,6 @@ export default function Sales() {
             <section className="card p-4" aria-label="กราฟยอดขายรายวัน">
               <h2 className="mb-2 font-bold">ยอดขายรายวัน</h2>
               <RevenueBarChart data={daily} />
-            </section>
-
-            <section className="card p-4">
-              <h2 className="mb-2 font-bold">ต้นทุน (ตัวอย่าง)</h2>
-              <SalesBarChart data={costs.data || []} height={220} />
-            </section>
-
-            <section className="card p-4">
-              <h2 className="mb-2 font-bold">สถิติคาดการณ์ (ตัวอย่าง)</h2>
-              <ForecastLineChart data={forecast.data || []} />
             </section>
           </div>
 

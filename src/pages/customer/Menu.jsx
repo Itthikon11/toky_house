@@ -142,7 +142,7 @@ export default function Menu() {
                 {cartCount}
               </span>
               <span className="flex-1 font-semibold">ดูตะกร้า / ยืนยันสั่ง</span>
-              <span className="font-display text-xl">{baht(cartTotal)}</span>
+              <span className="font-num text-xl">{baht(cartTotal)}</span>
               <Icon name="chevronRight" size={20} />
             </Link>
           </motion.div>

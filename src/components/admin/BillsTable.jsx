@@ -42,7 +42,7 @@ export default function BillsTable({ bills, onChanged }) {
                 </div>
                 <div className="text-xs text-subtle">{dateTimeOf(b.paid_at || b.updated_at)}</div>
               </div>
-              <span className={`font-display text-xl ${b.status === 'cancelled' ? 'text-gray-400 line-through' : ''}`}>{baht(b.total)}</span>
+              <span className={`font-num text-xl ${b.status === 'cancelled' ? 'text-gray-400 line-through' : ''}`}>{baht(b.total)}</span>
               <Icon name="chevronRight" size={18} className="text-gray-400" />
             </button>
           </li>

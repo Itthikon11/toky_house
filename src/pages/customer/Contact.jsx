@@ -1,12 +1,13 @@
 import { motion } from 'framer-motion'
 import PageHeader from '../../components/ui/PageHeader'
 import Icon from '../../components/ui/Icon'
+import { SHOP } from '../../config/constants'
 
 const CHANNELS = [
-  { glyph: 'f', label: 'Facebook', value: 'TOKYO HOUSE', href: 'https://facebook.com', color: 'bg-blue-600', external: true },
-  { icon: 'music', label: 'TikTok', value: '@tokyohouse', href: 'https://tiktok.com', color: 'bg-black', external: true },
-  { icon: 'phone', label: 'โทรศัพท์', value: '098-532-9350', href: 'tel:0985329350', color: 'bg-green-600' },
-  { icon: 'mail', label: 'อีเมล', value: 'hello@tokyohouse.co', href: 'mailto:hello@tokyohouse.co', color: 'bg-brand-ink' },
+  { glyph: 'f', label: 'Facebook', value: 'TOKYO HOUSE', href: SHOP.facebook, color: 'bg-blue-600', external: true },
+  { icon: 'music', label: 'TikTok', value: SHOP.tiktokHandle, href: SHOP.tiktok, color: 'bg-black', external: true },
+  { icon: 'chat', label: 'LINE', value: SHOP.lineId, href: SHOP.line, color: 'bg-[#06C755]', external: true },
+  { icon: 'phone', label: 'โทรศัพท์', value: SHOP.phone, href: `tel:${SHOP.phone.replace(/-/g, '')}`, color: 'bg-green-600' },
 ]
 
 export default function Contact() {
@@ -42,8 +43,16 @@ export default function Contact() {
         <div className="card mt-5 overflow-hidden">
           <div className="flex items-center gap-2 px-5 py-3 font-bold">
             <Icon name="map" size={20} /> แผนที่ร้าน
+            <a href={SHOP.mapUrl} target="_blank" rel="noopener noreferrer" className="ml-auto flex min-h-[2.75rem] items-center gap-1.5 text-sm font-semibold text-subtle transition hover:text-brand-ink">
+              เปิดใน Google Maps <Icon name="external" size={16} />
+            </a>
           </div>
-          <iframe title="แผนที่ร้าน TOKYO HOUSE" className="h-72 w-full" loading="lazy" src="https://www.google.com/maps?q=Bangkok&output=embed" />
+          <iframe
+            title="แผนที่ร้าน TOKYO HOUSE"
+            className="h-72 w-full"
+            loading="lazy"
+            src={`https://www.google.com/maps?q=${encodeURIComponent(SHOP.mapQuery)}&output=embed`}
+          />
         </div>
       </div>
     </div>

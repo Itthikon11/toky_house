@@ -21,13 +21,6 @@
   html {
     -webkit-text-size-adjust: 100%;
   }
-  /* จอคอม/จอใหญ่ (≥1280px): ขยายทั้งหน้า 125% ให้อ่านง่ายจากระยะไกล
-     ทุกขนาดในระบบเป็น rem จึงขยายตามพร้อมกันหมด — มือถือ/แท็บเล็ตคงขนาดเดิม */
-  @media (min-width: 1280px) {
-    html {
-      font-size: 125%;
-    }
-  }
   body {
     @apply bg-white font-sans text-brand-ink antialiased;
     margin: 0;
@@ -195,6 +188,13 @@
   }
   .font-display {
     letter-spacing: 0.01em;
+  }
+  /* ตัวเลข/ราคา/ชื่อโต๊ะ: Anton ไม่มีตัวอักษรไทยและ ฿ จึงใช้ Prompt ตัวหนาแทน
+     ไม่อย่างนั้นเลขจะเป็นฟอนต์หนึ่ง แต่ ฿ / "รอบ" / "โต๊ะ" เป็นอีกฟอนต์ ดูไม่เข้ากัน */
+  .font-num {
+    font-family: theme('fontFamily.sans');
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
   }
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);

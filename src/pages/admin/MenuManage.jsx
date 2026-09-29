@@ -154,7 +154,7 @@ export default function MenuManage() {
                       {r.name}
                     </span>
                     <span className="mt-1 flex flex-wrap items-center gap-x-3 text-sm text-subtle">
-                      <span className="font-display text-base text-brand-ink">{baht(r.price)}</span>
+                      <span className="font-num text-base text-brand-ink">{baht(r.price)}</span>
                       {!r.available && <span className="badge badge-danger">หมด</span>}
                       <span>{r.category}</span>
                       {r.filling && <span>ไส้{r.filling}</span>}

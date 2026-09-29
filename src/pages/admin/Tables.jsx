@@ -94,7 +94,7 @@ export default function Tables() {
                     </span>
                   )}
                 </div>
-                <p className="mt-1 font-display text-2xl">{t.label}</p>
+                <p className="mt-1 font-num text-2xl">{t.label}</p>
                 <p className="text-xs text-subtle">สแกนเพื่อสั่งอาหาร · TOKYO HOUSE</p>
 
                 <div className="mt-3 w-full space-y-2 print:hidden">

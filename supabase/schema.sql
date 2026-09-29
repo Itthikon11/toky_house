@@ -1,5 +1,5 @@
 -- ==========================================================================
--- TOKYO HOUSE — Supabase schema (v2)
+-- TOKYO HOUSE — Supabase schema (v3)
 -- รันทั้งไฟล์ใน Supabase Dashboard > SQL Editor (รันซ้ำได้ ไม่ทำข้อมูลหาย)
 --
 -- หลักการความปลอดภัย
@@ -98,13 +98,39 @@ create table if not exists public.staff_calls (
 );
 create index if not exists staff_calls_pending_idx on public.staff_calls (status, last_called_at desc);
 
+-- หมวดรายจ่าย (พนักงานสร้าง/แก้ชื่อ/ลบเองได้ในหน้า "การเงิน & บัญชี")
+create table if not exists public.expense_categories (
+  id         uuid primary key default gen_random_uuid(),
+  name       text not null unique check (char_length(name) between 1 and 40),
+  sort       int not null default 0,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.expenses (
   id         uuid primary key default gen_random_uuid(),
-  category   text not null,
+  category   text,
   amount     numeric(12,2) not null default 0,
   spent_on   date not null default current_date,
   created_at timestamptz not null default now()
 );
+-- v3: รายจ่ายผูกกับหมวด + หมายเหตุ (รันซ้ำได้ — เพิ่มเฉพาะที่ยังไม่มี)
+-- ลบหมวดที่ยังมีรายจ่ายอยู่ไม่ได้ (on delete restrict) กันตัวเลขย้อนหลังหายหมวด
+alter table public.expenses alter column category drop not null;
+alter table public.expenses add column if not exists category_id uuid
+  references public.expense_categories (id) on delete restrict;
+alter table public.expenses add column if not exists note text;
+do $$
+begin
+  alter table public.expenses add constraint expenses_amount_range check (amount > 0 and amount <= 10000000);
+exception when duplicate_object then null;
+end $$;
+do $$
+begin
+  alter table public.expenses add constraint expenses_note_length check (note is null or char_length(note) <= 200);
+exception when duplicate_object then null;
+end $$;
+create index if not exists expenses_spent_on_idx on public.expenses (spent_on desc);
+create index if not exists expenses_category_idx on public.expenses (category_id);
 
 -- ============================== HELPERS ===================================
 
@@ -156,6 +182,29 @@ drop trigger if exists bills_guard_closed on public.bills;
 create trigger bills_guard_closed
   before update on public.bills
   for each row execute function public.guard_closed_bill();
+
+-- ยกเลิกรอบ/แก้รายการในบิลที่ปิดแล้วไม่ได้ (กันยอดที่รับเงินแล้วเปลี่ยน) — เปลี่ยนสถานะครัวได้ตามปกติ
+create or replace function public.guard_closed_bill_orders()
+returns trigger
+language plpgsql set search_path = public
+as $$
+begin
+  if (new.status = 'ยกเลิก') is distinct from (old.status = 'ยกเลิก')
+     or new.total is distinct from old.total
+     or new.items is distinct from old.items
+     or new.bill_id is distinct from old.bill_id then
+    if exists (select 1 from public.bills where id = old.bill_id and status <> 'open') then
+      raise exception 'BILL_NOT_OPEN';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists orders_guard_closed on public.orders;
+create trigger orders_guard_closed
+  before update on public.orders
+  for each row execute function public.guard_closed_bill_orders();
 
 -- ============================== CUSTOMER RPC ==============================
 
@@ -391,6 +440,7 @@ alter table public.bills         enable row level security;
 alter table public.orders        enable row level security;
 alter table public.staff_calls   enable row level security;
 alter table public.expenses      enable row level security;
+alter table public.expense_categories enable row level security;
 
 -- ลบ policy เดโมเวอร์ชันแรก (ที่เปิดให้ทุกคนแก้ได้)
 drop policy if exists "menu read"      on public.menu_items;
@@ -438,6 +488,10 @@ drop policy if exists "staff only" on public.expenses;
 create policy "staff only" on public.expenses
   for all to authenticated using (public.is_staff()) with check (public.is_staff());
 
+drop policy if exists "staff only" on public.expense_categories;
+create policy "staff only" on public.expense_categories
+  for all to authenticated using (public.is_staff()) with check (public.is_staff());
+
 -- ============================== STORAGE (รูปเมนู) ==========================
 -- ทุกคนดูรูปได้ (bucket สาธารณะ) · อัปโหลด/ลบได้เฉพาะพนักงาน · จำกัด 2 MB และเฉพาะไฟล์รูป
 -- (หน้าเว็บย่อรูปเหลือ ~100 KB ก่อนอัปโหลดอยู่แล้ว)
@@ -469,6 +523,82 @@ begin
   begin alter publication supabase_realtime add table public.staff_calls; exception when others then null; end;
 end $$;
 
+-- ============================== RETENTION =================================
+-- ล้างข้อมูลยอดขาย/การเงินทุกรอบ 65 วัน (ลบเงียบ ๆ ไม่มีแจ้งเตือน)
+-- ลบ: บิลที่ปิดแล้ว + ออเดอร์, รายจ่าย, การเรียกพนักงานที่จัดการแล้ว · ไม่ลบ: บิลค้าง เมนู โต๊ะ หมวด พนักงาน
+create table if not exists public.retention_state (
+  id            int primary key default 1 check (id = 1),     -- มีแถวเดียว
+  cycle_start   date not null default (now() at time zone 'Asia/Bangkok')::date,
+  last_purge_at timestamptz,
+  last_purged   jsonb
+);
+insert into public.retention_state (id) values (1) on conflict (id) do nothing;
+
+alter table public.retention_state enable row level security;
+drop policy if exists "staff read" on public.retention_state;
+create policy "staff read" on public.retention_state
+  for select to authenticated using (public.is_staff());
+
+-- ตรวจรอบ + ลบเมื่อครบกำหนด แล้วคืนสถานะรอบปัจจุบัน
+-- เรียกได้จาก pg_cron (ทุกคืน) และจากหน้าพนักงาน (สำรอง เผื่อ pg_cron ไม่ได้เปิด)
+create or replace function public.run_retention()
+returns jsonb
+language plpgsql security definer set search_path = public
+as $$
+declare
+  s        public.retention_state%rowtype;
+  v_today  date := (now() at time zone 'Asia/Bangkok')::date;
+  v_cycles int;
+  v_bills  int := 0;
+  v_exp    int := 0;
+  v_calls  int := 0;
+begin
+  -- ผู้ใช้ที่ล็อกอินต้องเป็นพนักงาน (pg_cron รันเป็นเจ้าของฐานข้อมูล ไม่มี auth.uid())
+  if auth.uid() is not null and not public.is_staff() then raise exception 'NOT_AUTHORIZED'; end if;
+
+  insert into public.retention_state (id) values (1) on conflict (id) do nothing;
+  select * into s from public.retention_state where id = 1 for update;
+
+  v_cycles := (v_today - s.cycle_start) / 65;
+  if v_cycles >= 1 then
+    delete from public.bills where status <> 'open';            -- ออเดอร์ลบตาม (on delete cascade)
+    get diagnostics v_bills = row_count;
+    delete from public.expenses;
+    get diagnostics v_exp = row_count;
+    delete from public.staff_calls where status = 'done';
+    get diagnostics v_calls = row_count;
+
+    -- เลื่อนรอบตามปฏิทินเดิม (ถ้าไม่มีใครเปิดระบบนานเกินรอบ ก็ยังตรงรอบ)
+    update public.retention_state
+       set cycle_start = s.cycle_start + v_cycles * 65,
+           last_purge_at = now(),
+           last_purged = jsonb_build_object('bills', v_bills, 'expenses', v_exp, 'calls', v_calls)
+     where id = 1
+    returning * into s;
+  end if;
+
+  return jsonb_build_object(
+    'cycle_start', s.cycle_start,
+    'purge_on', s.cycle_start + 65,
+    'days_left', (s.cycle_start + 65) - v_today,
+    'last_purge_at', s.last_purge_at,
+    'last_purged', s.last_purged);
+end;
+$$;
+
+revoke all on function public.run_retention() from public, anon;
+grant execute on function public.run_retention() to authenticated;
+
+-- ลบตรงเวลาทุกคืน 00:05 น. (เวลาไทย = 17:05 UTC) ด้วย pg_cron
+-- ถ้าเปิด pg_cron ไม่ได้ ระบบยังลบให้ตอนพนักงานเปิดหน้าพนักงานครั้งแรกหลังครบกำหนด
+do $$
+begin
+  create extension if not exists pg_cron;
+  perform cron.schedule('tokyo-house-retention', '5 17 * * *', 'select public.run_retention()');
+exception when others then
+  raise notice 'pg_cron ใช้ไม่ได้ (%): ระบบจะลบตอนพนักงานเปิดหน้าพนักงานแทน', sqlerrm;
+end $$;
+
 -- ============================== SEED ======================================
 
 insert into public.dining_tables (id, label, is_takeaway, sort)
@@ -494,6 +624,12 @@ insert into public.menu_items (id, code, name, filling, category, price, availab
   ('A11','A11','เบคอน + ชีส + ไข่','คาว','ขนมโตเกียว',130,true,'/images/products/S__11141150_0.jpg'),
   ('A12','A12','ชาไทย + ไข่มุก','หวาน','เครื่องดื่ม',60,true,'/images/products/S__11141154_0.jpg')
 on conflict (id) do nothing;
+
+-- หมวดรายจ่ายเริ่มต้น (แก้ชื่อ/ลบ/เพิ่มได้ในหน้า "การเงิน & บัญชี")
+insert into public.expense_categories (name, sort) values
+  ('วัตถุดิบ', 1), ('บรรจุภัณฑ์', 2), ('ค่าแก๊ส', 3), ('ค่าไฟ', 4),
+  ('ค่าน้ำ', 5), ('ค่าเช่า', 6), ('ค่าแรง', 7), ('อื่น ๆ', 99)
+on conflict (name) do nothing;
 
 -- ==========================================================================
 -- เพิ่มพนักงาน: สร้างผู้ใช้ที่ Authentication > Users ก่อน แล้วรัน (เปลี่ยนอีเมล)

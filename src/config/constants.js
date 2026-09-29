@@ -64,6 +64,23 @@ export const PRODUCT_IMAGES = [
   'S__11141162_0.jpg', 'S__11141165_0.jpg', '1789906358805.jpg', 'messageImage_1789906582811.jpg',
 ].map((f) => `/images/products/${f}`)
 
+// ช่องทางติดต่อร้าน (ใช้ในหน้าติดต่อ + footer — แก้ที่เดียว)
+export const SHOP = {
+  facebook: 'https://www.facebook.com/profile.php?id=61587255671456',
+  tiktok: 'https://www.tiktok.com/@tokyo_house888',
+  tiktokHandle: '@tokyo_house888',
+  line: 'https://line.me/R/ti/p/@868xbeya',
+  lineId: '@868xbeya',
+  phone: '098-532-9350',
+  mapUrl: 'https://maps.app.goo.gl/1RrA1aNf5GU4hEh78',
+  mapQuery: 'TOKYO HOUSE โตเกียว เฮาส์ ตำบลสระแก้ว อำเภอเมืองสระแก้ว สระแก้ว 27000',
+}
+
+// ล้างข้อมูลยอดขาย/การเงินทุกรอบ (ต้องตรงกับ run_retention ใน supabase/schema.sql)
+export const RETENTION = {
+  CYCLE_DAYS: 65,
+}
+
 // คีย์ localStorage ทั้งหมดของแอป
 export const STORAGE_KEYS = {
   TABLE_SESSION: 'th_table_session',

@@ -9,6 +9,7 @@ import {
   ORDER_STATUS,
   ORDER_STATUS_CANCELLED,
   PAYMENT_METHODS,
+  RETENTION,
   STORAGE_KEYS,
 } from '../../config/constants'
 import { readJSON, writeJSON, remove } from '../../lib/storage'
@@ -19,10 +20,10 @@ import {
   randomToken,
   safeEqual,
 } from '../../lib/security'
-import { byCode } from '../../lib/format'
+import { byCode, localDateKey } from '../../lib/format'
 import { blobToDataUrl } from '../../lib/image'
 import { AppError } from '../errors'
-import { FORECAST, MENU_SEED, MONTHLY_COSTS, makeHistory, makeTables } from './seed'
+import { MENU_SEED, makeExpenseCategories, makeHistory, makeTables } from './seed'
 
 const DB_VERSION = 2
 const CHANGE_EVENT = 'th-mock-db-change'
@@ -31,12 +32,30 @@ const CHANGE_EVENT = 'th-mock-db-change'
 function seedDb() {
   const tables = makeTables()
   const { bills, orders } = makeHistory(tables)
-  return { version: DB_VERSION, menu: MENU_SEED, tables, bills, orders, calls: [] }
+  return {
+    version: DB_VERSION,
+    menu: MENU_SEED,
+    tables,
+    bills,
+    orders,
+    calls: [],
+    expenseCategories: makeExpenseCategories(),
+    expenses: [],
+    retention: { cycle_start: localDateKey(new Date()), last_purge_at: null, last_purged: null },
+  }
 }
 
 function load() {
   const db = readJSON(STORAGE_KEYS.MOCK_DB)
-  if (db && db.version === DB_VERSION) return db
+  if (db && db.version === DB_VERSION) {
+    // ข้อมูลโหมดทดลองที่สร้างก่อนมีหน้าการเงิน → เติมหมวดเริ่มต้นให้ (ไม่ล้างข้อมูลเดิม)
+    if (!db.expenseCategories) {
+      db.expenseCategories = makeExpenseCategories()
+      db.expenses = []
+    }
+    if (!db.retention) db.retention = { cycle_start: localDateKey(new Date()), last_purge_at: null, last_purged: null }
+    return db
+  }
   const fresh = seedDb()
   writeJSON(STORAGE_KEYS.MOCK_DB, fresh)
   return fresh
@@ -386,6 +405,10 @@ export const updateOrderStatus = (orderId, status) =>
       if (!ORDER_STATUS.includes(status)) throw new AppError('UNKNOWN')
       const order = db.orders.find((o) => o.id === orderId)
       if (!order) throw new AppError('UNKNOWN')
+      // บิลที่ปิดแล้ว: ยกเลิก/เลิกยกเลิกรอบไม่ได้ (ยอดที่รับเงินแล้วต้องไม่เปลี่ยน) — เหมือน trigger ใน schema.sql
+      const bill = db.bills.find((b) => b.id === order.bill_id)
+      const togglesCancel = (status === ORDER_STATUS_CANCELLED) !== (order.status === ORDER_STATUS_CANCELLED)
+      if (togglesCancel && bill && bill.status !== BILL_STATUS.OPEN) throw new AppError('BILL_NOT_OPEN')
       order.status = status
       recalcBill(db, order.bill_id)
       return true
@@ -467,12 +490,102 @@ export const regenerateTableToken = (id) =>
     }),
   )
 
-export async function getCosts() {
-  return respond(MONTHLY_COSTS)
+// ---------- การเงิน & บัญชี (รายจ่าย + หมวด) ----------
+const byCategoryOrder = (a, b) => a.sort - b.sort || a.name.localeCompare(b.name, 'th')
+
+export const listExpenseCategories = () =>
+  staffOnly(() => load().expenseCategories.slice().sort(byCategoryOrder))
+
+export const saveExpenseCategory = ({ id, name }) =>
+  staffOnly(() =>
+    mutate((db) => {
+      const clean = cleanText(name, 40)
+      if (!clean) throw new AppError('UNKNOWN')
+      if (db.expenseCategories.some((c) => c.id !== id && c.name.toLowerCase() === clean.toLowerCase())) {
+        throw new AppError('DUPLICATE')
+      }
+      if (id) {
+        const c = db.expenseCategories.find((x) => x.id === id)
+        if (!c) throw new AppError('UNKNOWN')
+        c.name = clean
+        return c
+      }
+      const c = { id: randomId(), name: clean, sort: 50, created_at: nowIso() }
+      db.expenseCategories.push(c)
+      return c
+    }),
+  )
+
+export const deleteExpenseCategory = (id) =>
+  staffOnly(() =>
+    mutate((db) => {
+      if (db.expenses.some((e) => e.category_id === id)) throw new AppError('IN_USE')
+      db.expenseCategories = db.expenseCategories.filter((c) => c.id !== id)
+      return true
+    }),
+  )
+
+export const listExpenses = ({ from, to }) =>
+  staffOnly(() =>
+    load()
+      .expenses.filter((e) => (!from || e.spent_on >= from) && (!to || e.spent_on <= to))
+      .sort((a, b) => b.spent_on.localeCompare(a.spent_on) || b.created_at.localeCompare(a.created_at)),
+  )
+
+export const saveExpense = ({ id, category_id, amount, spent_on, note }) =>
+  staffOnly(() =>
+    mutate((db) => {
+      const n = Number(amount)
+      if (!Number.isFinite(n) || n <= 0 || n > 10000000) throw new AppError('UNKNOWN')
+      if (!db.expenseCategories.some((c) => c.id === category_id)) throw new AppError('UNKNOWN')
+      const row = { category_id, amount: n, spent_on, note: cleanText(note, 200) || null }
+      if (id) {
+        const e = db.expenses.find((x) => x.id === id)
+        if (!e) throw new AppError('UNKNOWN')
+        Object.assign(e, row)
+        return { id }
+      }
+      const e = { id: randomId(), ...row, created_at: nowIso() }
+      db.expenses.push(e)
+      return { id: e.id }
+    }),
+  )
+
+export const deleteExpense = (id) =>
+  staffOnly(() =>
+    mutate((db) => {
+      db.expenses = db.expenses.filter((e) => e.id !== id)
+      return true
+    }),
+  )
+
+// ---------- ล้างข้อมูลทุกรอบ 65 วัน (เหมือน run_retention ใน schema.sql) ----------
+const dayDiff = (a, b) => Math.round((new Date(`${a}T00:00:00`) - new Date(`${b}T00:00:00`)) / 86400000)
+const addDays = (key, n) => {
+  const d = new Date(`${key}T00:00:00`)
+  d.setDate(d.getDate() + n)
+  return localDateKey(d)
 }
-export async function getForecast() {
-  return respond(FORECAST)
-}
+
+export const getRetention = () =>
+  staffOnly(() =>
+    mutate((db) => {
+      const today = localDateKey(new Date())
+      const r = db.retention
+      const cycles = Math.floor(dayDiff(today, r.cycle_start) / RETENTION.CYCLE_DAYS)
+      if (cycles >= 1) {
+        const closed = new Set(db.bills.filter((b) => b.status !== BILL_STATUS.OPEN).map((b) => b.id))
+        const purged = { bills: closed.size, expenses: db.expenses.length, calls: db.calls.filter((c) => c.status === 'done').length }
+        db.bills = db.bills.filter((b) => !closed.has(b.id))
+        db.orders = db.orders.filter((o) => !closed.has(o.bill_id))
+        db.expenses = []
+        db.calls = db.calls.filter((c) => c.status !== 'done')
+        Object.assign(r, { cycle_start: addDays(r.cycle_start, cycles * RETENTION.CYCLE_DAYS), last_purge_at: nowIso(), last_purged: purged })
+      }
+      const purgeOn = addDays(r.cycle_start, RETENTION.CYCLE_DAYS)
+      return { ...r, purge_on: purgeOn, days_left: dayDiff(purgeOn, today) }
+    }),
+  )
 
 // แจ้งเตือนเมื่อข้อมูลเปลี่ยน (แท็บเดียวกัน + แท็บอื่นในเบราว์เซอร์เดียวกัน)
 export function subscribe(cb) {

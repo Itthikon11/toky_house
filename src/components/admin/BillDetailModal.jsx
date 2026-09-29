@@ -142,7 +142,8 @@ export default function BillDetailModal({ bill, onClose, onChanged }) {
                   type="button"
                   role="radio"
                   aria-checked={o.status === s}
-                  disabled={!!busy}
+                  // บิลที่ปิดแล้ว: ยกเลิก/เลิกยกเลิกรอบไม่ได้ ยอดที่รับเงินไปแล้วจะได้ไม่เปลี่ยน
+                  disabled={!!busy || (!isOpen && (s === ORDER_STATUS_CANCELLED) !== (o.status === ORDER_STATUS_CANCELLED))}
                   onClick={() => o.status !== s && run(`o-${o.id}`, () => api.updateOrderStatus(o.id, s))}
                   className={`min-h-[2.25rem] rounded-full px-1 text-xs font-bold transition disabled:opacity-60 ${
                     o.status === s ? (s === ORDER_STATUS_CANCELLED ? 'bg-red-600 text-white' : 'bg-brand-ink text-white') : 'text-gray-600 hover:bg-gray-100'
@@ -169,7 +170,7 @@ export default function BillDetailModal({ bill, onClose, onChanged }) {
           </ul>
           <div className="mt-3 flex items-baseline justify-between border-t border-black/5 pt-3">
             <span className="font-bold">ยอดชำระ</span>
-            <span className="font-display text-3xl">{baht(bill.total)}</span>
+            <span className="font-num text-3xl">{baht(bill.total)}</span>
           </div>
         </div>
       </div>

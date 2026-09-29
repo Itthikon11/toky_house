@@ -23,6 +23,7 @@ import NotFound from './pages/NotFound'
 const Login = lazy(() => import('./pages/admin/Login'))
 const Dashboard = lazy(() => import('./pages/admin/Dashboard'))
 const Sales = lazy(() => import('./pages/admin/Sales'))
+const Finance = lazy(() => import('./pages/admin/Finance'))
 const MenuManage = lazy(() => import('./pages/admin/MenuManage'))
 const Tables = lazy(() => import('./pages/admin/Tables'))
 
@@ -65,6 +66,7 @@ export default function App() {
             <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/admin/dashboard" element={admin(<Dashboard />)} />
             <Route path="/admin/sales" element={admin(<Sales />)} />
+            <Route path="/admin/finance" element={admin(<Finance />)} />
             <Route path="/admin/menu" element={admin(<MenuManage />)} />
             <Route path="/admin/tables" element={admin(<Tables />)} />
 

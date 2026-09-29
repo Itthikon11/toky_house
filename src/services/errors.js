@@ -27,6 +27,9 @@ const MESSAGES = {
   NETWORK: 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ต',
   BAD_IMAGE: 'เปิดไฟล์รูปนี้ไม่ได้ กรุณาใช้ไฟล์ JPG, PNG หรือ WEBP',
   IMAGE_TOO_LARGE: 'รูปใหญ่เกิน 10 MB กรุณาเลือกรูปอื่น',
+  IN_USE: 'หมวดนี้ยังมีรายจ่ายอยู่ — ย้ายรายจ่ายไปหมวดอื่นหรือลบรายจ่ายก่อน จึงจะลบหมวดได้',
+  DUPLICATE: 'มีชื่อนี้อยู่แล้ว',
+  DB_OUTDATED: 'ฐานข้อมูลยังไม่ได้อัปเดตสำหรับฟีเจอร์นี้ — ให้ผู้ดูแลรันไฟล์ใน supabase/migrations ที่ SQL Editor ของ Supabase',
   STORAGE_FULL: 'พื้นที่เก็บข้อมูลในเบราว์เซอร์เต็ม (โหมดทดลอง) — ลบรูปที่ไม่ใช้ หรือเชื่อม Supabase',
 }
 
@@ -36,6 +39,10 @@ export function errorCode(err) {
   const msg = String(err.message || err)
   const hit = Object.keys(MESSAGES).find((k) => msg.includes(k))
   if (hit) return hit
+  // ตาราง/คอลัมน์ที่ฟีเจอร์ใหม่ต้องใช้ยังไม่ถูกสร้าง (ยังไม่ได้รัน migration)
+  if (/schema cache|column .* does not exist|relation .* does not exist/i.test(msg)) return 'DB_OUTDATED'
+  if (/foreign key/i.test(msg)) return 'IN_USE'
+  if (/duplicate key|unique constraint/i.test(msg)) return 'DUPLICATE'
   if (/fetch|network|Failed to fetch/i.test(msg)) return 'NETWORK'
   if (/permission|row-level security|JWT/i.test(msg)) return 'NOT_AUTHORIZED'
   return 'UNKNOWN'

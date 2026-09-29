@@ -72,7 +72,7 @@ export default function MyBill() {
                 <span className="font-semibold text-muted">ยอดรวมทั้งบิล</span>
                 <StatusBadge kind="bill" status={bill.status} />
               </div>
-              <div className="mt-1 font-display text-5xl">{baht(bill.total)}</div>
+              <div className="mt-1 font-num text-5xl">{baht(bill.total)}</div>
               <div className="text-sm text-subtle">
                 {bill.orders.length} รอบ · {merged.reduce((s, it) => s + it.qty, 0)} ชิ้น
               </div>

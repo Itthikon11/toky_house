@@ -32,6 +32,7 @@ import {
   MapPin,
   Maximize,
   Menu,
+  MessageCircle,
   Minus,
   Music2,
   Pencil,
@@ -55,6 +56,7 @@ import {
   UtensilsCrossed,
   Volume2,
   VolumeX,
+  Wallet,
   WifiOff,
   X,
 } from 'lucide'
@@ -91,6 +93,7 @@ export const ICONS = {
   map: MapPin,
   fullscreen: Maximize,
   menu: Menu,
+  chat: MessageCircle,
   minus: Minus,
   music: Music2,
   edit: Pencil,
@@ -114,6 +117,7 @@ export const ICONS = {
   food: UtensilsCrossed,
   soundOn: Volume2,
   soundOff: VolumeX,
+  wallet: Wallet,
   offline: WifiOff,
   close: X,
 }

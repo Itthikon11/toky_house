@@ -86,7 +86,7 @@ export default function Cart() {
                       <div className="text-sm text-subtle">{baht(c.price)} / ชิ้น</div>
                       <div className="mt-2 flex items-center justify-between gap-2">
                         <QtyStepper value={c.qty} onChange={(q) => setQty(c.id, q)} size="sm" label={c.name} />
-                        <span className="font-display text-lg">{baht(c.price * c.qty)}</span>
+                        <span className="font-num text-lg">{baht(c.price * c.qty)}</span>
                       </div>
                     </div>
                     <button
@@ -127,7 +127,7 @@ export default function Cart() {
 
               <div className="flex items-baseline justify-between border-t border-black/5 pt-4">
                 <span className="font-semibold">รวมรอบนี้</span>
-                <span className="font-display text-3xl">{baht(cartTotal)}</span>
+                <span className="font-num text-3xl">{baht(cartTotal)}</span>
               </div>
 
               {session ? (
@@ -182,7 +182,7 @@ function OrderPlaced({ result }) {
             {merged ? 'รวมเข้าบิลเดิมของโต๊ะแล้ว' : 'เปิดบิลของโต๊ะแล้ว'}
           </span>
           <p className="mt-3 text-sm text-muted">ยอดรวมทั้งบิล (ยังไม่ชำระ)</p>
-          <p className="font-display text-4xl">{baht(result.bill_total)}</p>
+          <p className="font-num text-4xl">{baht(result.bill_total)}</p>
           <p className="mt-2 text-sm text-muted">สั่งเพิ่มกี่รอบก็รวมเป็นบิลเดียว</p>
         </div>
 

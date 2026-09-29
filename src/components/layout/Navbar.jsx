@@ -11,7 +11,7 @@ import { useCallStaff } from '../customer/CallStaffProvider'
 
 function Logo() {
   return (
-    <Link to="/" className="flex shrink-0 items-center gap-2" aria-label="TOKYO HOUSE หน้าแรก">
+    <Link to="/" className="flex shrink-0 items-center gap-2 lg:justify-self-start" aria-label="TOKYO HOUSE หน้าแรก">
       <img src="/images/LOGO.jpg" alt="" className="h-10 w-10 rounded-full object-cover ring-2 ring-brand-yellow" />
       <span className="hidden font-display text-2xl tracking-wide sm:inline">TOKYO&nbsp;HOUSE</span>
     </Link>
@@ -27,6 +27,7 @@ const CUSTOMER_LINKS = [
 const ADMIN_LINKS = [
   { to: '/admin/dashboard', label: 'แดชบอร์ด', icon: 'grid' },
   { to: '/admin/sales', label: 'ยอดขาย', icon: 'chart' },
+  { to: '/admin/finance', label: 'การเงิน & บัญชี', icon: 'wallet' },
   { to: '/admin/menu', label: 'จัดการเมนู', icon: 'food' },
   { to: '/admin/tables', label: 'โต๊ะ & QR', icon: 'qr' },
 ]
@@ -64,10 +65,10 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-black/5 bg-white/95 backdrop-blur print:hidden">
-      <div className="mx-auto flex h-header max-w-7xl items-center gap-3 px-4">
+      <div className="flex h-header items-center gap-3 px-4 sm:px-6 lg:grid lg:grid-cols-[1fr_auto_1fr]">
         <Logo />
 
-        <nav className="ml-4 hidden items-center gap-1 lg:flex" aria-label="เมนูหลัก">
+        <nav className="hidden items-center gap-1 lg:flex" aria-label="เมนูหลัก">
           {links.map((l) => (
             <NavLink key={l.to} to={l.to} end={l.end} className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
               <Icon name={l.icon} size={18} />
@@ -76,7 +77,7 @@ export default function Navbar() {
           ))}
         </nav>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2 lg:justify-self-end">
           {isAdmin ? (
             <>
               <button

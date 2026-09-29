@@ -75,7 +75,7 @@ export function CallStaffProvider({ children }) {
             <Icon name="map" size={24} />
             <div>
               <div className="text-sm font-semibold">พนักงานจะมาที่</div>
-              <div className="font-display text-3xl leading-none">{session.label}</div>
+              <div className="font-num text-3xl leading-none">{session.label}</div>
             </div>
           </div>
 

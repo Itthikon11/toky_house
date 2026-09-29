@@ -8,11 +8,20 @@ import { randomId, randomToken, cleanText } from '../../lib/security'
 import { byCode } from '../../lib/format'
 import { BILL_STATUS, PAYMENT_METHODS } from '../../config/constants'
 import { AppError } from '../errors'
-import { FORECAST, MONTHLY_COSTS } from '../mock/seed'
 
 function unwrap({ data, error }) {
   if (error) throw error
   return data
+}
+
+// Supabase ตอบได้สูงสุด 1,000 แถวต่อครั้ง → ดึงทีละหน้าจนครบ (เช่น ยอดขายทั้งรอบ 65 วัน)
+async function fetchAll(buildQuery, pageSize = 1000) {
+  const out = []
+  for (let start = 0; ; start += pageSize) {
+    const rows = unwrap(await buildQuery().range(start, start + pageSize - 1))
+    out.push(...rows)
+    if (rows.length < pageSize) return out
+  }
 }
 
 const BILL_WITH_ORDERS = '*, orders(id, bill_id, round, items, total, note, status, created_at)'
@@ -135,15 +144,18 @@ export async function listOpenBills() {
 }
 
 export async function listClosedBills({ from, to }) {
-  let q = supabase
-    .from('bills')
-    .select(BILL_WITH_ORDERS)
-    .neq('status', BILL_STATUS.OPEN)
-    .order('updated_at', { ascending: false })
-    .limit(1000)
-  if (from) q = q.gte('updated_at', from)
-  if (to) q = q.lte('updated_at', to)
-  return unwrap(await q).map(sortOrders)
+  const rows = await fetchAll(() => {
+    let q = supabase
+      .from('bills')
+      .select(BILL_WITH_ORDERS)
+      .neq('status', BILL_STATUS.OPEN)
+      .order('updated_at', { ascending: false })
+      .order('id')
+    if (from) q = q.gte('updated_at', from)
+    if (to) q = q.lte('updated_at', to)
+    return q
+  })
+  return rows.map(sortOrders)
 }
 
 export async function markBillPaid(id, method) {
@@ -248,12 +260,56 @@ export async function regenerateTableToken(id) {
   )
 }
 
-// ยังใช้ข้อมูลตัวอย่าง — ต่อยอดได้จากตาราง expenses
-export async function getCosts() {
-  return MONTHLY_COSTS
+
+// ---------- การเงิน & บัญชี (รายจ่าย + หมวด) ----------
+export async function listExpenseCategories() {
+  return unwrap(await supabase.from('expense_categories').select('*').order('sort').order('name'))
 }
-export async function getForecast() {
-  return FORECAST
+
+export async function saveExpenseCategory({ id, name }) {
+  const row = { name: cleanText(name, 40) }
+  const q = id
+    ? supabase.from('expense_categories').update(row).eq('id', id)
+    : supabase.from('expense_categories').insert({ ...row, sort: 50 })
+  return unwrap(await q.select().single())
+}
+
+// ลบได้เฉพาะหมวดที่ไม่มีรายจ่าย (ฐานข้อมูลกันไว้ด้วย on delete restrict)
+export async function deleteExpenseCategory(id) {
+  unwrap(await supabase.from('expense_categories').delete().eq('id', id))
+  return true
+}
+
+// from / to = 'yyyy-mm-dd' (วันที่จ่ายจริง ไม่ใช่เวลาที่บันทึก)
+export async function listExpenses({ from, to }) {
+  return fetchAll(() => {
+    let q = supabase
+      .from('expenses')
+      .select('id, category_id, amount, spent_on, note, created_at')
+      .order('spent_on', { ascending: false })
+      .order('created_at', { ascending: false })
+      .order('id')
+    if (from) q = q.gte('spent_on', from)
+    if (to) q = q.lte('spent_on', to)
+    return q
+  })
+}
+
+export async function saveExpense({ id, category_id, amount, spent_on, note }) {
+  const row = { category_id, amount: Number(amount), spent_on, note: cleanText(note, 200) || null }
+  const q = id ? supabase.from('expenses').update(row).eq('id', id) : supabase.from('expenses').insert(row)
+  return unwrap(await q.select('id').single())
+}
+
+export async function deleteExpense(id) {
+  unwrap(await supabase.from('expenses').delete().eq('id', id))
+  return true
+}
+
+// ---------- ล้างข้อมูลทุกรอบ 65 วัน ----------
+// ตรวจรอบ (ถ้าครบกำหนดแล้วฐานข้อมูลจะลบให้เลย) → { cycle_start, purge_on, days_left, last_purge_at }
+export async function getRetention() {
+  return unwrap(await supabase.rpc('run_retention'))
 }
 
 // Realtime: พนักงานเห็นออเดอร์ใหม่/การเรียกพนักงานทันที (RLS กรองให้เฉพาะพนักงาน)
